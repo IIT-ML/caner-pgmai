@@ -1,3 +1,3 @@
 pgmai
 =====
-Active inference for PGM's.
+Active inference for PGMs.
