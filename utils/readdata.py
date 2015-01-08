@@ -35,10 +35,11 @@ def digitize_data(tempdf = None, binCount = 545,
                   to_be_pickled=False):
     if tempdf is None:
         try:
-            tempdf = cPickle.load(open('../data/temp.pickle','rb'))
+            tempdf = cPickle.load(open('../data/tempdf.pickle','rb'))
         except(IOError):
             tempdf = read_data(binCount=binCount,
-                           discarded_sensors=discarded_sensors)
+                           discarded_sensors=discarded_sensors,
+                           to_be_pickled=to_be_pickled)
     tempdf['unixtime'] = pd.Series(np.array([elem.value \
             for elem in tempdf['datentime']]), index=tempdf.index)
     
@@ -60,7 +61,8 @@ def window_data(digitizeddf = None, binCount = 545,
             digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
         except(IOError):
             digitizeddf = digitize_data(binCount = binCount,
-                                    discarded_sensors=discarded_sensors)
+                                    discarded_sensors=discarded_sensors,
+                                    to_be_pickled=to_be_pickled)
     groups = digitizeddf.groupby(['moteid','digTime'])
     meanSeries = groups.temperature.mean()
     time_window_df = pd.DataFrame(meanSeries)
@@ -70,51 +72,49 @@ def window_data(digitizeddf = None, binCount = 545,
                                           dtype = np.int16,
                                    index=time_window_df.index)
     time_window_df['digTemp'][time_window_df.temperature < 20] = 0
-    time_window_df['digTemp'][np.logical_and(time_window_df.temperature >= 20,\
+    time_window_df['digTemp'][np.logical_and(time_window_df.temperature >= 20,
                            time_window_df.temperature < 22.5)] = 1
-    time_window_df['digTemp'][np.logical_and(time_window_df.temperature >= 22.5,\
+    time_window_df['digTemp'][np.logical_and(time_window_df.temperature >= 22.5,
                            time_window_df.temperature < 25)] = 2
     time_window_df['digTemp'][time_window_df.temperature >= 25] = 3
     if to_be_pickled:
-        cPickle.dump(time_window_df, open('../data/time_window_df.pickle','wb'),
+        cPickle.dump(time_window_df,
+                     open('../data/time_window_df.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return time_window_df
 
-def convert_digitized_to_feature_matrix(tempdf = None, time_window_df = None,
+def convert_digitized_to_feature_matrix(digitizeddf = None,
+                                        time_window_df = None,
                                         binCount = 545,
                                         discarded_sensors = [5,15,18,49],
                                         to_be_pickled=False):
+    if digitizeddf is None:
+        try:
+            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+        except(IOError):
+            digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
     try:
         sorted_mat = cPickle.load(open('../data/sorted_mat.pickle','rb'))
     except(IOError):
-        if tempdf is None:
-            try:
-                tempdf = cPickle.load(open('../data/tempdf.pickle','rb'))
-            except(IOError):
-                tempdf = read_data(binCount=binCount,
-                               discarded_sensors=discarded_sensors,
-                               to_be_pickled=to_be_pickled)
         if time_window_df is None:
             try:
-                digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
-            except(IOError):
-                digitizeddf = digitize_data(tempdf=tempdf,
-                                            to_be_pickled=to_be_pickled)
-            try:
-                time_window_df = cPickle.load(open('../data/time_window_df.pickle',
-                                                   'rb'))
+                time_window_df = cPickle.\
+                                    load(open('../data/time_window_df.pickle',
+                                              'rb'))
             except(IOError):
                 time_window_df = window_data(digitizeddf=digitizeddf,
                                              to_be_pickled=to_be_pickled)
-        sorted_mat = time_window_df.sort(columns='digTime').as_matrix()[:,(0,3)]
-    if to_be_pickled:
-        cPickle.dump(sorted_mat, open('../data/sorted_mat.pickle','wb'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-    daytime = np.array(map(lambda x: x.hour/6, tempdf.datentime))
-    tempdf['daytime']=daytime
+        sorted_mat = time_window_df.sort(columns='digTime').\
+                                    as_matrix()[:,(0,3)]
+        if to_be_pickled:
+            cPickle.dump(sorted_mat, open('../data/sorted_mat.pickle','wb'),
+                         protocol=cPickle.HIGHEST_PROTOCOL)
+    daytime = np.array(map(lambda x: x.hour/6, digitizeddf.datentime))
+    digitizeddf['daytime']=daytime
     day_time_list = np.empty((sorted_mat.shape[0]),dtype='int32')
     for i in range(0,sorted_mat.shape[0]):
-        day_time_list[i] = digitizeddf[digitizeddf.digTime == sorted_mat[i,0]].daytime.iloc[0]
+        day_time_list[i] = digitizeddf[digitizeddf.digTime ==
+                                        sorted_mat[i,0]].daytime.iloc[0]
     bin_feature_mat = np.zeros((len(day_time_list),4))
     for i in range(len(day_time_list)):
         bin_feature_mat[i,day_time_list[i]] = 1
@@ -123,7 +123,53 @@ def convert_digitized_to_feature_matrix(tempdf = None, time_window_df = None,
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return sorted_mat,bin_feature_mat
 
-
+def partition_feature_mat_into_sensors(digitizeddf = None,
+                                       time_window_df = None,
+                                       to_be_pickled=False):
+    if digitizeddf is None:
+        try:
+            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+        except(IOError):
+            digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
+    if time_window_df is None:
+        try:
+            time_window_df = cPickle.\
+                                load(open('../data/time_window_df.pickle',
+                                          'rb'))
+        except(IOError):
+            if digitizeddf is None:
+                try:
+                    digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+                except(IOError):
+                    digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
+            time_window_df = window_data(digitizeddf=digitizeddf,
+                                         to_be_pickled=to_be_pickled)
+    sensor_IDs = np.unique(time_window_df.moteid)
+    sorted_mat = time_window_df.sort(columns='digTime').\
+                                    as_matrix()[:,(0,3)]
+    daytime = np.array(map(lambda x: x.hour/6, digitizeddf.datentime))
+    digitizeddf['daytime']=daytime
+    dayTimeList = np.empty((sorted_mat.shape[0]),dtype=np.int64)
+    for i in range(0,sorted_mat.shape[0]):
+        dayTimeList[i] = digitizeddf[digitizeddf.digTime == sorted_mat[i,0]].daytime.iloc[0]
+    time_window_df.sort('digTime',inplace=True)
+    time_window_df['dayTime'] = dayTimeList
+    bin_feature_dict = dict()
+    one_sensor_data_dict = dict()
+    for current_sensor_ID in sensor_IDs:
+        one_sensor_data = time_window_df[time_window_df['moteid']==
+                                       current_sensor_ID]
+        one_sensor_mat = one_sensor_data.as_matrix()[:,(0,3,4)]
+        one_sensor_data_dict[current_sensor_ID] = one_sensor_mat
+        bin_feature_mat = np.zeros((one_sensor_mat.shape[0],4))
+        for i in range(one_sensor_mat.shape[0]):
+            bin_feature_mat[i,one_sensor_mat[i,2]] = 1
+        bin_feature_dict[current_sensor_ID] = bin_feature_mat
+    if to_be_pickled:
+        cPickle.dump((one_sensor_data_dict,bin_feature_dict), open(
+                '../data/one_sensor_data.pickle','wb'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+    return one_sensor_data_dict,bin_feature_dict
 #test1
 # tempdf = read_data()
 # digitizeddf = digitize_data(tempdf=tempdf)

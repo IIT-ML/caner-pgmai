@@ -5,12 +5,16 @@ Created on Jan 7, 2015
 '''
 
 import numpy as np
+import cPickle
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
 from utils.readdata import convert_digitized_to_feature_matrix
 
-sorted_mat, bin_feature_mat = convert_digitized_to_feature_matrix()
+# sorted_mat, bin_feature_mat = convert_digitized_to_feature_matrix(
+#             to_be_pickled=True)
+sorted_mat = cPickle.load(open('../data/sorted_mat.pickle','rb'))
+bin_feature_mat = cPickle.load(open('../data/bin_feature_mat.pickle','rb'))
 
 trainDays = [2,3,4]
 testDays = [5,6]
@@ -20,14 +24,14 @@ X_test = np.empty((0,4))
 Y_test = np.empty((0,1))
 for i in trainDays:
     X_train = np.append(X_train,bin_feature_mat[np.where((\
-            [i*48 < x < (i+1)*48 for x in sorted_mat[:,0]]))],axis=0)
+            [i*48 <= x < (i+1)*48 for x in sorted_mat[:,0]]))],axis=0)
     Y_train = np.append(Y_train,sorted_mat[np.where((\
-            [i*48 < x < (i+1)*48 for x in sorted_mat[:,0]])),1])
+            [i*48 <= x < (i+1)*48 for x in sorted_mat[:,0]])),1])
 for i in testDays:
     X_test = np.append(X_test,bin_feature_mat[np.where((\
-            [i*48 < x < (i+1)*48 for x in sorted_mat[:,0]]))],axis=0)
+            [i*48 <= x < (i+1)*48 for x in sorted_mat[:,0]]))],axis=0)
     Y_test = np.append(Y_test,sorted_mat[np.where((\
-            [i*48 < x < (i+1)*48 for x in sorted_mat[:,0]])),1])
+            [i*48 <= x < (i+1)*48 for x in sorted_mat[:,0]])),1])
 
 C = [10**i for i in range(-3,7)]
 results = dict()
