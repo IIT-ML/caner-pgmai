@@ -170,6 +170,65 @@ def partition_feature_mat_into_sensors(digitizeddf = None,
                 '../data/one_sensor_data.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return one_sensor_data_dict,bin_feature_dict
+
+def create_time_window_df_bin_feature(digitizeddf=None,
+                           time_window_df=None,
+                           to_be_pickled=False):
+    '''The data returned by this method is a pandas data frame. It's the
+    time windowed temporal data, that is 545 rows for each sensor. Columns are
+        'digTime', 'moteid', 'temperature', 'digTemp', 'morning',
+        'afternoon', 'evening', 'night'
+    '''
+    if digitizeddf is None:
+        try:
+            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+        except(IOError):
+            digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
+    if time_window_df is None:
+        try:
+            time_window_df = cPickle.\
+                                load(open('../data/time_window_df.pickle',
+                                          'rb'))
+        except(IOError):            
+            time_window_df = window_data(digitizeddf=digitizeddf,
+                                         to_be_pickled=to_be_pickled)
+    time_window_df.sort(columns='digTime',inplace=True)
+    daytime = np.array(map(lambda x: x.hour/6, digitizeddf.datentime))
+    digitizeddf['daytime']=daytime
+    dayTimeList = np.empty((time_window_df.shape[0]),dtype=np.int64)
+    for i in range(0,time_window_df.shape[0]):
+        dayTimeList[i] = digitizeddf[digitizeddf.digTime ==
+                time_window_df.digTime.iloc[i]].daytime.iloc[0]
+    bin_feature_mat = np.zeros((time_window_df.shape[0],4))
+    bin_feature_mat[np.arange(time_window_df.shape[0]),dayTimeList] = 1
+    time_window_df['morning'] = bin_feature_mat[:,0]
+    time_window_df['afternoon'] = bin_feature_mat[:,1]
+    time_window_df['evening'] = bin_feature_mat[:,2]
+    time_window_df['night'] = bin_feature_mat[:,3]
+    cPickle.dump(time_window_df,
+        open('../data/time_window_df_bin_feature.pickle','wb'))
+    return time_window_df
+
+def add_day_to_time_window_df(time_window_df=None):
+    if time_window_df is None:
+        time_window_df = cPickle.load(open(
+            '../data/time_window_df_bin_feature.pickle','rb'))
+    timeBins = np.arange(12)*48 + 1
+    timeBins = timeBins[1:]
+    days = np.digitize(time_window_df.digTime,timeBins)
+    time_window_df['day'] = days
+    return time_window_df
+
+def train_test_split_by_day():
+    train_days = range(5)
+    test_days = range(5,10)
+    time_window_df = add_day_to_time_window_df()
+    train_df = time_window_df[time_window_df.day.isin(train_days)]
+    test_df = time_window_df[time_window_df.day.isin(test_days)]
+    return train_df,test_df
+    
+    
+    
 #test1
 # tempdf = read_data()
 # digitizeddf = digitize_data(tempdf=tempdf)
@@ -179,3 +238,8 @@ def partition_feature_mat_into_sensors(digitizeddf = None,
 #test2
 # feature_mat = convert_digitized_to_feature_matrix(to_be_pickled=True)
 # print 'end of process'
+# partition_feature_mat_into_sensors(to_be_pickled=False)
+# create_time_window_df_bin_feature()
+
+train_df, test_df = train_test_split_by_day()
+pass
