@@ -240,6 +240,3 @@ def train_test_split_by_day():
 # print 'end of process'
 # partition_feature_mat_into_sensors(to_be_pickled=False)
 # create_time_window_df_bin_feature()
-
-train_df, test_df = train_test_split_by_day()
-pass
