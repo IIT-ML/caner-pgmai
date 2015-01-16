@@ -238,5 +238,11 @@ def train_test_split_by_day():
 #test2
 # feature_mat = convert_digitized_to_feature_matrix(to_be_pickled=True)
 # print 'end of process'
+
+
 # partition_feature_mat_into_sensors(to_be_pickled=False)
 # create_time_window_df_bin_feature()
+traindays,testdays = train_test_split_by_day()
+cPickle.dump((traindays,testdays),
+             open('../data/traintestdays.pickle','wb'),
+             protocol=cPickle.HIGHEST_PROTOCOL)
