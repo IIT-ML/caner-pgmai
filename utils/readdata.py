@@ -7,6 +7,7 @@ Created on Jan 6, 2015
 import pandas as pd
 import numpy as np
 import cPickle
+from node import SensorRVNode
 
 def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
@@ -205,8 +206,9 @@ def create_time_window_df_bin_feature(digitizeddf=None,
     time_window_df['afternoon'] = bin_feature_mat[:,1]
     time_window_df['evening'] = bin_feature_mat[:,2]
     time_window_df['night'] = bin_feature_mat[:,3]
-    cPickle.dump(time_window_df,
-        open('../data/time_window_df_bin_feature.pickle','wb'))
+    if to_be_pickled:
+        cPickle.dump(time_window_df,
+            open('../data/time_window_df_bin_feature.pickle','wb'))
     return time_window_df
 
 def add_day_to_time_window_df(time_window_df=None):
@@ -219,16 +221,61 @@ def add_day_to_time_window_df(time_window_df=None):
     time_window_df['day'] = days
     return time_window_df
 
-def train_test_split_by_day():
+def train_test_split_by_day(to_be_pickled=False):
     train_days = range(5)
     test_days = range(5,10)
     time_window_df = add_day_to_time_window_df()
     train_df = time_window_df[time_window_df.day.isin(train_days)]
     test_df = time_window_df[time_window_df.day.isin(test_days)]
+    if to_be_pickled:
+        cPickle.dump((train_days,test_days),
+                     open('../data/traintestdays.pickle','wb'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
     return train_df,test_df
-    
-    
-    
+
+def convert_time_window_df_randomvar():
+    try:
+        traindays,testdays = cPickle.load(
+            open('../data/traintestdays.pickle','rb'))
+    except(IOError):
+        traindays,testdays = train_test_split_by_day()
+    sensor_IDs = traindays.moteid.unique()
+    num_sensors = sensor_IDs.shape[0]
+    num_dig_time = traindays.digTime.unique().shape[0]
+    train_set = np.ndarray(shape=(num_sensors,num_dig_time),
+                           dtype=SensorRVNode)
+    for i in range(len(traindays)):
+        row = traindays.iloc[i]
+        sensor_id = row.moteid
+        sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
+        dig_time = row.digTime - 1
+        local_feature_vector = [row.morning, row.afternoon,
+                                row.evening, row.night]
+        neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
+        train_set[sensor_idx,dig_time] = \
+            SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
+                         day=row.day, true_label=None,
+                         local_feature_vector=local_feature_vector,
+                         is_observed=False, neighbors=neighbors)
+    num_dig_time = testdays.digTime.unique().shape[0]
+    test_set = np.ndarray(shape=(num_sensors,num_dig_time),
+                           dtype=SensorRVNode)
+    for i in range(len(testdays)):
+        row = testdays.iloc[i]
+        sensor_id = row.moteid
+        sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
+        dig_time = row.digTime - 241
+#         print sensor_id,'\t',sensor_idx,'\t',dig_time
+        local_feature_vector = [row.morning, row.afternoon,
+                                row.evening, row.night]
+        neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
+        test_set[sensor_idx,dig_time] = \
+            SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
+                         day=row.day, true_label=None,
+                         local_feature_vector=local_feature_vector,
+                         is_observed=False, neighbors=neighbors)
+    return train_set,test_set
+
 #test1
 # tempdf = read_data()
 # digitizeddf = digitize_data(tempdf=tempdf)
@@ -242,7 +289,7 @@ def train_test_split_by_day():
 
 # partition_feature_mat_into_sensors(to_be_pickled=False)
 # create_time_window_df_bin_feature()
-traindays,testdays = train_test_split_by_day()
-cPickle.dump((traindays,testdays),
-             open('../data/traintestdays.pickle','wb'),
-             protocol=cPickle.HIGHEST_PROTOCOL)
+# traindays,testdays = train_test_split_by_day()
+
+
+# train_set,test_set = convert_time_window_df_randomvar()
