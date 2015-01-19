@@ -7,6 +7,8 @@ Created on Jan 6, 2015
 import pandas as pd
 import numpy as np
 import cPickle
+import itertools
+
 from node import SensorRVNode
 
 def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
@@ -193,14 +195,14 @@ def create_time_window_df_bin_feature(digitizeddf=None,
         except(IOError):            
             time_window_df = window_data(digitizeddf=digitizeddf,
                                          to_be_pickled=to_be_pickled)
-    time_window_df.sort(columns='digTime',inplace=True)
+    time_window_df.sort(columns=['digTime','moteid'],inplace=True)
     daytime = np.array(map(lambda x: x.hour/6, digitizeddf.datentime))
     digitizeddf['daytime']=daytime
     dayTimeList = np.empty((time_window_df.shape[0]),dtype=np.int64)
     for i in range(0,time_window_df.shape[0]):
         dayTimeList[i] = digitizeddf[digitizeddf.digTime ==
                 time_window_df.digTime.iloc[i]].daytime.iloc[0]
-    bin_feature_mat = np.zeros((time_window_df.shape[0],4))
+    bin_feature_mat = np.zeros((time_window_df.shape[0],4),dtype=np.bool8)
     bin_feature_mat[np.arange(time_window_df.shape[0]),dayTimeList] = 1
     time_window_df['morning'] = bin_feature_mat[:,0]
     time_window_df['afternoon'] = bin_feature_mat[:,1]
@@ -211,10 +213,14 @@ def create_time_window_df_bin_feature(digitizeddf=None,
             open('../data/time_window_df_bin_feature.pickle','wb'))
     return time_window_df
 
-def add_day_to_time_window_df(time_window_df=None):
+def add_day_to_time_window_df(time_window_df=None,to_be_pickled=None):
     if time_window_df is None:
-        time_window_df = cPickle.load(open(
-            '../data/time_window_df_bin_feature.pickle','rb'))
+        try:
+            time_window_df = cPickle.load(open(
+                '../data/time_window_df_bin_feature.pickle','rb'))
+        except(IOError):
+            time_window_df = create_time_window_df_bin_feature(to_be_pickled=
+                                                               to_be_pickled)
     timeBins = np.arange(12)*48 + 1
     timeBins = timeBins[1:]
     days = np.digitize(time_window_df.digTime,timeBins)
@@ -233,47 +239,57 @@ def train_test_split_by_day(to_be_pickled=False):
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return train_df,test_df
 
-def convert_time_window_df_randomvar():
+def convert_time_window_df_randomvar(to_be_pickled=False):
     try:
-        traindays,testdays = cPickle.load(
-            open('../data/traintestdays.pickle','rb'))
+        train_set,test_set = cPickle.load(
+            open('../data/traintestnodes.pickle','rb'))
     except(IOError):
-        traindays,testdays = train_test_split_by_day()
-    sensor_IDs = traindays.moteid.unique()
-    num_sensors = sensor_IDs.shape[0]
-    num_dig_time = traindays.digTime.unique().shape[0]
-    train_set = np.ndarray(shape=(num_sensors,num_dig_time),
-                           dtype=SensorRVNode)
-    for i in range(len(traindays)):
-        row = traindays.iloc[i]
-        sensor_id = row.moteid
-        sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
-        dig_time = row.digTime - 1
-        local_feature_vector = [row.morning, row.afternoon,
-                                row.evening, row.night]
-        neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
-        train_set[sensor_idx,dig_time] = \
-            SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
-                         day=row.day, true_label=None,
-                         local_feature_vector=local_feature_vector,
-                         is_observed=False, neighbors=neighbors)
-    num_dig_time = testdays.digTime.unique().shape[0]
-    test_set = np.ndarray(shape=(num_sensors,num_dig_time),
-                           dtype=SensorRVNode)
-    for i in range(len(testdays)):
-        row = testdays.iloc[i]
-        sensor_id = row.moteid
-        sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
-        dig_time = row.digTime - 241
-#         print sensor_id,'\t',sensor_idx,'\t',dig_time
-        local_feature_vector = [row.morning, row.afternoon,
-                                row.evening, row.night]
-        neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
-        test_set[sensor_idx,dig_time] = \
-            SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
-                         day=row.day, true_label=None,
-                         local_feature_vector=local_feature_vector,
-                         is_observed=False, neighbors=neighbors)
+        try:
+            traindays,testdays = cPickle.load(
+                open('../data/traintestdays.pickle','rb'))
+        except(IOError):
+            traindays,testdays = train_test_split_by_day(to_be_pickled)
+        sensor_IDs = traindays.moteid.unique()
+        num_sensors = sensor_IDs.shape[0]
+        num_dig_time = traindays.digTime.unique().shape[0]
+        train_set = np.ndarray(shape=(num_sensors,num_dig_time),
+                               dtype=SensorRVNode)
+        for sensor,digTime in itertools.product(traindays.moteid.unique(),
+                                                traindays.digTime.unique()):
+            row = traindays[(traindays.moteid==sensor) &
+                            (traindays.digTime==digTime)].iloc[0]
+            sensor_id = row.moteid
+            sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
+            dig_time = row.digTime - 1
+            local_feature_vector = [row.morning, row.afternoon,
+                                    row.evening, row.night]
+            neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
+            train_set[sensor_idx,dig_time] = \
+                SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
+                             day=row.day, true_label=row.digTemp,
+                             local_feature_vector=local_feature_vector,
+                             is_observed=False, neighbors=neighbors)
+        num_dig_time = testdays.digTime.unique().shape[0]
+        test_set = np.ndarray(shape=(num_sensors,num_dig_time),
+                               dtype=SensorRVNode)
+        for i in range(len(testdays)):
+            row = testdays.iloc[i]
+            sensor_id = row.moteid
+            sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
+            dig_time = row.digTime - 241
+    #         print sensor_id,'\t',sensor_idx,'\t',dig_time
+            local_feature_vector = [row.morning, row.afternoon,
+                                    row.evening, row.night]
+            neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
+            test_set[sensor_idx,dig_time] = \
+                SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
+                             day=row.day, true_label=None,
+                             local_feature_vector=local_feature_vector,
+                             is_observed=False, neighbors=neighbors)
+        if to_be_pickled:
+            cPickle.dump((train_set,test_set),
+                     open('../data/traintestnodes.pickle','wb'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
     return train_set,test_set
 
 #test1
@@ -291,5 +307,18 @@ def convert_time_window_df_randomvar():
 # create_time_window_df_bin_feature()
 # traindays,testdays = train_test_split_by_day()
 
+# create_time_window_df_bin_feature(to_be_pickled=True)
 
-# train_set,test_set = convert_time_window_df_randomvar()
+# train_set,test_set = convert_time_window_df_randomvar(True)
+
+# for i in range(train_set.shape[0]):
+#     for j in range(3):
+#         print train_set[i,j].sensor_id,
+#     print
+
+# for i in range(test_set.shape[1]):
+#     print test_set[0,i].dig_time
+
+# add_day_to_time_window_df()
+
+# pass
