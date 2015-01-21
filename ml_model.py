@@ -16,12 +16,18 @@ class MLModel(object):
     def __init__(self):
         pass
     
+    '''
+    train_mat should be a two dimentional matrix composed of RandomVarNode
+    '''
     @abstractmethod
-    def fit(self,X,Y):
+    def fit(self,train_mat):
         pass
      
+    '''
+    Same as fit() function
+    '''
     @abstractmethod
-    def predict(self,X): #return Y
+    def predict(self,test_mat): #return Y
         pass
     
     @abstractmethod

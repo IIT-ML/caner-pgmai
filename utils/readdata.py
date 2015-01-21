@@ -11,6 +11,8 @@ import itertools
 
 from node import SensorRVNode
 
+DATA_DIR_PATH = 'data/'
+
 def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
     tempdf = pd.read_csv('C:/Users/ckomurlu/Documents/workbench/data/' + \
@@ -29,7 +31,7 @@ def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
     for sensor in discarded_sensors:
         tempdf = tempdf[tempdf.moteid != sensor]
     if to_be_pickled:
-        cPickle.dump(tempdf, open('../data/tempdf.pickle','wb'),
+        cPickle.dump(tempdf, open(DATA_DIR_PATH+'tempdf.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return tempdf
 
@@ -38,7 +40,7 @@ def digitize_data(tempdf = None, binCount = 545,
                   to_be_pickled=False):
     if tempdf is None:
         try:
-            tempdf = cPickle.load(open('../data/tempdf.pickle','rb'))
+            tempdf = cPickle.load(open(DATA_DIR_PATH+'tempdf.pickle','rb'))
         except(IOError):
             tempdf = read_data(binCount=binCount,
                            discarded_sensors=discarded_sensors,
@@ -52,7 +54,7 @@ def digitize_data(tempdf = None, binCount = 545,
     
     tempdf['digTime'] = digTime
     if to_be_pickled:
-        cPickle.dump(tempdf, open('../data/digitizeddf.pickle','wb'),
+        cPickle.dump(tempdf, open(DATA_DIR_PATH+'digitizeddf.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return tempdf
 
@@ -61,7 +63,8 @@ def window_data(digitizeddf = None, binCount = 545,
                 to_be_pickled=False):
     if digitizeddf is None:
         try:
-            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+            digitizeddf = cPickle.load(open(DATA_DIR_PATH+
+                                            'digitizeddf.pickle','rb'))
         except(IOError):
             digitizeddf = digitize_data(binCount = binCount,
                                     discarded_sensors=discarded_sensors,
@@ -82,7 +85,7 @@ def window_data(digitizeddf = None, binCount = 545,
     time_window_df['digTemp'][time_window_df.temperature >= 25] = 3
     if to_be_pickled:
         cPickle.dump(time_window_df,
-                     open('../data/time_window_df.pickle','wb'),
+                     open(DATA_DIR_PATH+'time_window_df.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return time_window_df
 
@@ -93,25 +96,26 @@ def convert_digitized_to_feature_matrix(digitizeddf = None,
                                         to_be_pickled=False):
     if digitizeddf is None:
         try:
-            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+            digitizeddf = cPickle.load(open(DATA_DIR_PATH+
+                                            'digitizeddf.pickle','rb'))
         except(IOError):
             digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
     try:
-        sorted_mat = cPickle.load(open('../data/sorted_mat.pickle','rb'))
+        sorted_mat = cPickle.load(open(DATA_DIR_PATH+'sorted_mat.pickle','rb'))
     except(IOError):
         if time_window_df is None:
             try:
                 time_window_df = cPickle.\
-                                    load(open('../data/time_window_df.pickle',
-                                              'rb'))
+                                    load(open(DATA_DIR_PATH+
+                                              'time_window_df.pickle','rb'))
             except(IOError):
                 time_window_df = window_data(digitizeddf=digitizeddf,
                                              to_be_pickled=to_be_pickled)
         sorted_mat = time_window_df.sort(columns='digTime').\
                                     as_matrix()[:,(0,3)]
         if to_be_pickled:
-            cPickle.dump(sorted_mat, open('../data/sorted_mat.pickle','wb'),
-                         protocol=cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(sorted_mat, open(DATA_DIR_PATH+'sorted_mat.pickle',
+                        'wb'), protocol=cPickle.HIGHEST_PROTOCOL)
     daytime = np.array(map(lambda x: x.hour/6, digitizeddf.datentime))
     digitizeddf['daytime']=daytime
     day_time_list = np.empty((sorted_mat.shape[0]),dtype='int32')
@@ -122,7 +126,8 @@ def convert_digitized_to_feature_matrix(digitizeddf = None,
     for i in range(len(day_time_list)):
         bin_feature_mat[i,day_time_list[i]] = 1
     if to_be_pickled:
-        cPickle.dump(bin_feature_mat, open('../data/bin_feature_mat.pickle','wb'),
+        cPickle.dump(bin_feature_mat, open(DATA_DIR_PATH+
+                                           'bin_feature_mat.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return sorted_mat,bin_feature_mat
 
@@ -131,18 +136,19 @@ def partition_feature_mat_into_sensors(digitizeddf = None,
                                        to_be_pickled=False):
     if digitizeddf is None:
         try:
-            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+            digitizeddf = cPickle.load(open(DATA_DIR_PATH+
+                                            'digitizeddf.pickle','rb'))
         except(IOError):
             digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
     if time_window_df is None:
         try:
-            time_window_df = cPickle.\
-                                load(open('../data/time_window_df.pickle',
-                                          'rb'))
+            time_window_df = cPickle.load(open(DATA_DIR_PATH+
+                                'time_window_df.pickle','rb'))
         except(IOError):
             if digitizeddf is None:
                 try:
-                    digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+                    digitizeddf = cPickle.load(open(DATA_DIR_PATH+
+                                                    'digitizeddf.pickle','rb'))
                 except(IOError):
                     digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
             time_window_df = window_data(digitizeddf=digitizeddf,
@@ -170,7 +176,7 @@ def partition_feature_mat_into_sensors(digitizeddf = None,
         bin_feature_dict[current_sensor_ID] = bin_feature_mat
     if to_be_pickled:
         cPickle.dump((one_sensor_data_dict,bin_feature_dict), open(
-                '../data/one_sensor_data.pickle','wb'),
+                DATA_DIR_PATH+'one_sensor_data.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return one_sensor_data_dict,bin_feature_dict
 
@@ -184,14 +190,14 @@ def create_time_window_df_bin_feature(digitizeddf=None,
     '''
     if digitizeddf is None:
         try:
-            digitizeddf = cPickle.load(open('../data/digitizeddf.pickle','rb'))
+            digitizeddf = cPickle.load(open(DATA_DIR_PATH+
+                                            'digitizeddf.pickle','rb'))
         except(IOError):
             digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
     if time_window_df is None:
         try:
-            time_window_df = cPickle.\
-                                load(open('../data/time_window_df.pickle',
-                                          'rb'))
+            time_window_df = cPickle.load(open(DATA_DIR_PATH+
+                                          'time_window_df.pickle','rb'))
         except(IOError):            
             time_window_df = window_data(digitizeddf=digitizeddf,
                                          to_be_pickled=to_be_pickled)
@@ -210,14 +216,14 @@ def create_time_window_df_bin_feature(digitizeddf=None,
     time_window_df['night'] = bin_feature_mat[:,3]
     if to_be_pickled:
         cPickle.dump(time_window_df,
-            open('../data/time_window_df_bin_feature.pickle','wb'))
+            open(DATA_DIR_PATH+'time_window_df_bin_feature.pickle','wb'))
     return time_window_df
 
 def add_day_to_time_window_df(time_window_df=None,to_be_pickled=None):
     if time_window_df is None:
         try:
-            time_window_df = cPickle.load(open(
-                '../data/time_window_df_bin_feature.pickle','rb'))
+            time_window_df = cPickle.load(open(DATA_DIR_PATH+
+                        'time_window_df_bin_feature.pickle','rb'))
         except(IOError):
             time_window_df = create_time_window_df_bin_feature(to_be_pickled=
                                                                to_be_pickled)
@@ -234,19 +240,20 @@ def train_test_split_by_day(to_be_pickled=False):
     train_df = time_window_df[time_window_df.day.isin(train_days)]
     test_df = time_window_df[time_window_df.day.isin(test_days)]
     if to_be_pickled:
-        cPickle.dump((train_days,test_days),
-                     open('../data/traintestdays.pickle','wb'),
+        cPickle.dump((train_df,test_df),open(DATA_DIR_PATH+
+                                             'traintestdays.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return train_df,test_df
 
 def convert_time_window_df_randomvar(to_be_pickled=False):
     try:
         train_set,test_set = cPickle.load(
-            open('../data/traintestnodes.pickle','rb'))
+            open(DATA_DIR_PATH+'traintestnodes.pickle','rb'))
+#         raise IOError
     except(IOError):
         try:
             traindays,testdays = cPickle.load(
-                open('../data/traintestdays.pickle','rb'))
+                open(DATA_DIR_PATH+'traintestdays.pickle','rb'))
         except(IOError):
             traindays,testdays = train_test_split_by_day(to_be_pickled)
         sensor_IDs = traindays.moteid.unique()
@@ -283,12 +290,12 @@ def convert_time_window_df_randomvar(to_be_pickled=False):
             neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
             test_set[sensor_idx,dig_time] = \
                 SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
-                             day=row.day, true_label=None,
+                             day=row.day, true_label=row.digTemp,
                              local_feature_vector=local_feature_vector,
                              is_observed=False, neighbors=neighbors)
         if to_be_pickled:
             cPickle.dump((train_set,test_set),
-                     open('../data/traintestnodes.pickle','wb'),
+                     open(DATA_DIR_PATH+'traintestnodes.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return train_set,test_set
 
