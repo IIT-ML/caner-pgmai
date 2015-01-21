@@ -9,7 +9,7 @@ from joint.iterative_classifier import ICAModel
 
 def main():
     train_set,test_set = convert_time_window_df_randomvar(True)
-    icaModel = ICAModel()
+    icaModel = ICAModel(use_local_features=True)
     icaModel.fit(train_set)
     Y_pred = icaModel.predict(test_set, maxiter=3)
     print icaModel.compute_accuracy(test_set, Y_pred)
