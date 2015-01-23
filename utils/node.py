@@ -11,7 +11,7 @@ class RandomVarNode(object):
         self.local_feature_vector = local_feature_vector
         self.is_observed = is_observed
         self.neighbors = neighbors
-
+    
 class SensorRVNode(RandomVarNode):
     def __init__(self, sensor_id, dig_time, day, true_label=None,
                  local_feature_vector=None, is_observed= False,neighbors=None):

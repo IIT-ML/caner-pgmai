@@ -11,7 +11,8 @@ import itertools
 
 from node import SensorRVNode
 
-DATA_DIR_PATH = 'data/'
+# DATA_DIR_PATH = 'data/'
+DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\data\\'
 
 def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
