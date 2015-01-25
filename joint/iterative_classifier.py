@@ -71,55 +71,66 @@ class ICAModel(MLModel):
             else:
                 self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,:])
     
-    def predict(self, test_set, maxiter = 5):
-        if self.use_current_time:
-            return self.predict_current_time(test_set, maxiter)
-        else:
-            return self.predict_previous_time(test_set, maxiter)
-            
-    def predict_current_time(self, test_set, maxiter):
+    def predict(self, test_set, maxiter = 5, evidence_mat=None,
+                to_be_predicted_mat = None):
+        if evidence_mat is None:
+            evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
+        
         Y_pred = np.empty(shape=test_set.shape,dtype = np.int8)
-        row_count,col_count = test_set.shape
-        for i in range(row_count):
-            for j in range(col_count):
-                Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
+        evid_indices = np.where(evidence_mat == 1)
+        try:
+            Y_pred[evid_indices] = np.vectorize(lambda x: x.true_label)(
+                                                test_set[evid_indices])
+        except(IndexError):
+            pass
+        nonevid_indices = np.where(evidence_mat == 0)
+        for i,j in zip(nonevid_indices[0],nonevid_indices[1]):
+            Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
                                                         local_feature_vector)
+#         row_count,col_count = test_set.shape
+#         for i in range(row_count):
+#             for j in range(col_count):
+#                 Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
+#                                                         local_feature_vector)
         sensor_ID_dict = dict()
         count = 0
         for sensor_node in test_set[:,0]:
             sensor_ID_dict[sensor_node.sensor_id] = count
             count += 1
+        if self.use_current_time:
+            return self.__predict_current_time(test_set, maxiter, evidence_mat,
+                                             Y_pred, sensor_ID_dict)
+        else:
+            return self.__predict_previous_time(test_set, maxiter, evidence_mat,
+                                             Y_pred, sensor_ID_dict)
+            
+    def __predict_current_time(self, test_set, maxiter, evidence_mat, Y_pred,
+                             sensor_ID_dict):
         num_neighbor = len(test_set[0,0].neighbors)
         Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.int8)
+#         row_count,col_count = test_set.shape
+        nonevid_indices = np.where(evidence_mat == 0)
         for count in range(maxiter):
-            for i in range(row_count):
-                for j in range(col_count):
-                    neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
-                    for k in range(num_neighbor):
-                        neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
-                                                             neighbors[k]]
-                    current_feature_vector = Y_pred[neighbor_indices,j]
-                    if self.use_local_features:
-                        current_feature_vector = np.append(
-                            current_feature_vector,test_set[i,j].\
-                            local_feature_vector)
-                    Y_pred_temp[i,j] = self.relat_classifier[i].predict(
-                        current_feature_vector)
+            for i,j in zip(nonevid_indices[0],nonevid_indices[1]):
+#             for i in range(row_count):
+#                 for j in range(col_count):
+                neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
+                for k in range(num_neighbor):
+                    neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
+                                                         neighbors[k]]
+                current_feature_vector = Y_pred[neighbor_indices,j]
+                if self.use_local_features:
+                    current_feature_vector = np.append(
+                        current_feature_vector,test_set[i,j].\
+                        local_feature_vector)
+                Y_pred_temp[i,j] = self.relat_classifier[i].predict(
+                    current_feature_vector)
             Y_pred = Y_pred_temp.copy()
         return Y_pred
     
-    def predict_previous_time(self, test_set, maxiter):
-        Y_pred = np.empty(shape=test_set.shape,dtype = np.int8)
+    def __predict_previous_time(self, test_set, maxiter, evidence_mat, Y_pred,
+                             sensor_ID_dict):
         row_count,col_count = test_set.shape
-        for i in range(row_count):
-            for j in range(col_count):
-                Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
-                                                        local_feature_vector)
-        sensor_ID_dict = dict()
-        count = 0
-        for sensor_node in test_set[:,0]:
-            sensor_ID_dict[sensor_node.sensor_id] = count
-            count += 1
         num_neighbor = len(test_set[0,0].neighbors)
         Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.int8)
         Y_pred_first_col = Y_pred[:,0]

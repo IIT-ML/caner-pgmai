@@ -10,7 +10,7 @@ from joint.iterative_classifier import ICAModel
 def main():
     train_set,test_set = convert_time_window_df_randomvar(True)
     use_local_features=False
-    use_current_time=False
+    use_current_time=True
     icaModel = ICAModel(use_local_features=use_local_features,
                         use_current_time=use_current_time)
     icaModel.fit(train_set)
