@@ -70,9 +70,8 @@ class ICAModel(MLModel):
                             X_local_train[i,:], axis=1), Y_train[i,:])
             else:
                 self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,:])
-    
-    def predict(self, test_set, maxiter = 5, evidence_mat=None,
-                to_be_predicted_mat = None):
+
+    def predict_by_local_classifiers(self, test_set, evidence_mat=None):
         if evidence_mat is None:
             evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
         
@@ -87,11 +86,14 @@ class ICAModel(MLModel):
         for i,j in zip(nonevid_indices[0],nonevid_indices[1]):
             Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
                                                         local_feature_vector)
-#         row_count,col_count = test_set.shape
-#         for i in range(row_count):
-#             for j in range(col_count):
-#                 Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
-#                                                         local_feature_vector)
+        return Y_pred
+        
+    
+    def predict(self, test_set, maxiter=5, evidence_mat=None):
+        if evidence_mat is None:
+            evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
+        Y_pred = self.predict_by_local_classifiers(test_set, maxiter,
+                                                   evidence_mat)
         sensor_ID_dict = dict()
         count = 0
         for sensor_node in test_set[:,0]:
@@ -150,6 +152,56 @@ class ICAModel(MLModel):
                         current_feature_vector)
             Y_pred = Y_pred_temp.copy()
             Y_pred[:,0] = Y_pred_first_col
+        return Y_pred
+    
+    def predict_with_neighbors_true_labels_current_time(self,test_set):
+        sensor_ID_dict = dict()
+        count = 0
+        for sensor_node in test_set[:,0]:
+            sensor_ID_dict[sensor_node.sensor_id] = count
+            count += 1
+        row_count,col_count = test_set.shape
+        num_neighbor = len(test_set[0,0].neighbors)
+        true_label_mat = np.vectorize(lambda x: x.true_label)(test_set)
+        Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
+        for i in range(row_count):
+            for j in range(0,col_count):
+                neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
+                for k in range(num_neighbor):
+                    neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
+                                                         neighbors[k]]
+                current_feature_vector = true_label_mat[neighbor_indices,j]
+                if self.use_local_features:
+                    current_feature_vector = np.append(
+                        current_feature_vector,test_set[i,j].\
+                        local_feature_vector)
+                Y_pred[i,j] = self.relat_classifier[i].predict(
+                    current_feature_vector)
+        return Y_pred
+    
+    def predict_with_neighbors_true_labels_previous_time(self,test_set):
+        sensor_ID_dict = dict()
+        count = 0
+        for sensor_node in test_set[:,0]:
+            sensor_ID_dict[sensor_node.sensor_id] = count
+            count += 1
+        row_count,col_count = test_set.shape
+        num_neighbor = len(test_set[0,0].neighbors)
+        true_label_mat = np.vectorize(lambda x: x.true_label)(test_set)
+        Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
+        for i in range(row_count):
+            for j in range(1,col_count):
+                neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
+                for k in range(num_neighbor):
+                    neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
+                                                         neighbors[k]]
+                current_feature_vector = true_label_mat[neighbor_indices,j-1]
+                if self.use_local_features:
+                    current_feature_vector = np.append(
+                        current_feature_vector,test_set[i,j].\
+                        local_feature_vector)
+                Y_pred[i,j] = self.relat_classifier[i].predict(
+                    current_feature_vector)
         return Y_pred
                 
     def compute_accuracy(self,test_set,Y_pred):
