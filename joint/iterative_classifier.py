@@ -17,9 +17,10 @@ class ICAModel(MLModel):
     LR = 'lr'
     SVM = 'svm'
     
-    def __init__(self, local_classifier_name=LR,
-                 relat_classifier_name=LR,use_local_features=False,
-                 use_current_time=True,immediate_update=False):
+    def __init__(self, local_classifier_name=LR, local_classifier_C=1.0,
+                 relat_classifier_name=LR, relat_classifier_C=1.0,
+                 use_local_features=False, use_current_time=True,
+                 immediate_update=False):
         if local_classifier_name == ICAModel.LR:
             self.local_classifier_name = LogisticRegression
         elif local_classifier_name == ICAModel.SVM:
@@ -28,6 +29,7 @@ class ICAModel(MLModel):
             raise ValueError('Wrong classifier name is provided for the '+
                              'local classifier; it should be either \'lr\'' + 
                              ' or \'svm\'')
+        self.local_classifier_C = local_classifier_C
         if relat_classifier_name == ICAModel.LR:
             self.relat_classifier_name = LogisticRegression
         elif relat_classifier_name == ICAModel.SVM:
@@ -36,6 +38,7 @@ class ICAModel(MLModel):
             raise ValueError('Wrong classifier name is provided for the '+
                              'relational classifier; it should be either' + 
                              ' \'lr\' or \'svm\'')
+        self.relat_classifier_C = relat_classifier_C
         self.local_classifier = dict()
         self.relat_classifier = dict()
         self.use_local_features = use_local_features
@@ -62,9 +65,11 @@ class ICAModel(MLModel):
                     X_relat_train[i,j,k] = train_set[
                         sensor_ID_dict[train_set[i,j].neighbors[k]],j].\
                         true_label  
-            self.local_classifier[i] = self.local_classifier_name()
+            self.local_classifier[i] = self.local_classifier_name(
+                                        C=self.local_classifier_C)
             self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
-            self.relat_classifier[i] = self.relat_classifier_name()
+            self.relat_classifier[i] = self.relat_classifier_name(
+                                        C=self.relat_classifier_C)
             if self.use_local_features:
                 self.relat_classifier[i].fit(np.append(X_relat_train[i,:],
                             X_local_train[i,:], axis=1), Y_train[i,:])
