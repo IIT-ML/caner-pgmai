@@ -20,7 +20,7 @@ class ICAModel(MLModel):
     def __init__(self, local_classifier_name=LR, local_classifier_C=1.0,
                  relat_classifier_name=LR, relat_classifier_C=1.0,
                  use_local_features=False, use_current_time=True,
-                 immediate_update=False):
+                 is_relat_feature_binary = False, immediate_update=False):
         if local_classifier_name == ICAModel.LR:
             self.local_classifier_name = LogisticRegression
         elif local_classifier_name == ICAModel.SVM:
@@ -43,6 +43,7 @@ class ICAModel(MLModel):
         self.relat_classifier = dict()
         self.use_local_features = use_local_features
         self.use_current_time = use_current_time
+        self.is_relat_feature_binary = is_relat_feature_binary 
         self.immediate_update = immediate_update
     
     def fit(self, train_set):
@@ -58,8 +59,9 @@ class ICAModel(MLModel):
         relat_feature_vector_len = len(train_set[0,0].neighbors)
         X_relat_train = np.empty(shape=train_set.shape+
                                  (relat_feature_vector_len,),dtype=np.int8)
-        X_relat_train_bin = np.empty(shape=train_set.shape+
-                                 (relat_feature_vector_len*4,),dtype=np.int8)
+        if self.is_relat_feature_binary:
+            X_relat_train_bin = np.empty(shape=train_set.shape+
+                                     (relat_feature_vector_len*4,),dtype=np.int8)
         row_count,col_count = train_set.shape
         for i in range(row_count):
             for j in range(col_count):
@@ -74,12 +76,19 @@ class ICAModel(MLModel):
             self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
             self.relat_classifier[i] = self.relat_classifier_name(
                                         C=self.relat_classifier_C)
-            X_relat_train_bin[i] = self.convert_to_binary(X_relat_train[i])
-            if self.use_local_features:
-                self.relat_classifier[i].fit(np.append(X_relat_train_bin[i,:],
-                            X_local_train[i,:], axis=1), Y_train[i,:])
+            if self.is_relat_feature_binary:
+                X_relat_train_bin[i] = self.convert_to_binary(X_relat_train[i])
+                if self.use_local_features:
+                    self.relat_classifier[i].fit(np.append(X_relat_train_bin[i,:],
+                                X_local_train[i,:], axis=1), Y_train[i,:])
+                else:
+                    self.relat_classifier[i].fit(X_relat_train_bin[i,:], Y_train[i,:])
             else:
-                self.relat_classifier[i].fit(X_relat_train_bin[i,:], Y_train[i,:])
+                if self.use_local_features:
+                    self.relat_classifier[i].fit(np.append(X_relat_train[i,:],
+                                X_local_train[i,:], axis=1), Y_train[i,:])
+                else:
+                    self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,:])
 
     def predict_by_local_classifiers(self, test_set, evidence_mat=None):
         if evidence_mat is None:
@@ -131,8 +140,9 @@ class ICAModel(MLModel):
                     neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                          neighbors[k]]
                 current_feature_vector = Y_pred[neighbor_indices,j]
-                current_feature_vector = self.convert_to_binary(
-                                            current_feature_vector)
+                if self.is_relat_feature_binary:
+                    current_feature_vector = self.convert_to_binary(
+                                                current_feature_vector)
                 if self.use_local_features:
                     current_feature_vector = np.append(
                         current_feature_vector,test_set[i,j].\
@@ -156,8 +166,9 @@ class ICAModel(MLModel):
                         neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                              neighbors[k]]
                     current_feature_vector = Y_pred[neighbor_indices,j-1]
-                    current_feature_vector = self.convert_to_binary(
-                                            current_feature_vector)
+                    if self.is_relat_feature_binary:
+                        current_feature_vector = self.convert_to_binary(
+                                                current_feature_vector)
                     if self.use_local_features:
                         current_feature_vector = np.append(
                             current_feature_vector,test_set[i,j].\
@@ -185,8 +196,9 @@ class ICAModel(MLModel):
                     neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                          neighbors[k]]
                 current_feature_vector = true_label_mat[neighbor_indices,j]
-                current_feature_vector = self.convert_to_binary(
-                                            current_feature_vector)
+                if self.is_relat_feature_binary:
+                    current_feature_vector = self.convert_to_binary(
+                                                current_feature_vector)
                 if self.use_local_features:
                     current_feature_vector = np.append(
                         current_feature_vector,test_set[i,j].\
@@ -212,8 +224,9 @@ class ICAModel(MLModel):
                     neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                          neighbors[k]]
                 current_feature_vector = true_label_mat[neighbor_indices,j-1]
-                current_feature_vector = self.convert_to_binary(
-                                            current_feature_vector)
+                if self.is_relat_feature_binary:
+                    current_feature_vector = self.convert_to_binary(
+                                                current_feature_vector)
                 if self.use_local_features:
                     current_feature_vector = np.append(
                         current_feature_vector,test_set[i,j].\
