@@ -52,10 +52,14 @@ class ICAModel(MLModel):
             sensor_ID_dict[sensor_node.sensor_id] = count
             count += 1
         local_feature_vector_len = len(train_set[0,0].local_feature_vector)
-        X_local_train = np.empty(shape=train_set.shape+(local_feature_vector_len,),dtype=np.int8)
+        X_local_train = np.empty(shape=train_set.shape+
+                                 (local_feature_vector_len,),dtype=np.int8)
         Y_train = np.empty(shape=train_set.shape,dtype=np.int8)
         relat_feature_vector_len = len(train_set[0,0].neighbors)
-        X_relat_train = np.empty(shape=train_set.shape+(relat_feature_vector_len,),dtype=np.int8)
+        X_relat_train = np.empty(shape=train_set.shape+
+                                 (relat_feature_vector_len,),dtype=np.int8)
+        X_relat_train_bin = np.empty(shape=train_set.shape+
+                                 (relat_feature_vector_len*4,),dtype=np.int8)
         row_count,col_count = train_set.shape
         for i in range(row_count):
             for j in range(col_count):
@@ -70,11 +74,12 @@ class ICAModel(MLModel):
             self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
             self.relat_classifier[i] = self.relat_classifier_name(
                                         C=self.relat_classifier_C)
+            X_relat_train_bin[i] = self.convert_to_binary(X_relat_train[i])
             if self.use_local_features:
-                self.relat_classifier[i].fit(np.append(X_relat_train[i,:],
+                self.relat_classifier[i].fit(np.append(X_relat_train_bin[i,:],
                             X_local_train[i,:], axis=1), Y_train[i,:])
             else:
-                self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,:])
+                self.relat_classifier[i].fit(X_relat_train_bin[i,:], Y_train[i,:])
 
     def predict_by_local_classifiers(self, test_set, evidence_mat=None):
         if evidence_mat is None:
@@ -126,6 +131,8 @@ class ICAModel(MLModel):
                     neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                          neighbors[k]]
                 current_feature_vector = Y_pred[neighbor_indices,j]
+                current_feature_vector = self.convert_to_binary(
+                                            current_feature_vector)
                 if self.use_local_features:
                     current_feature_vector = np.append(
                         current_feature_vector,test_set[i,j].\
@@ -149,6 +156,8 @@ class ICAModel(MLModel):
                         neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                              neighbors[k]]
                     current_feature_vector = Y_pred[neighbor_indices,j-1]
+                    current_feature_vector = self.convert_to_binary(
+                                            current_feature_vector)
                     if self.use_local_features:
                         current_feature_vector = np.append(
                             current_feature_vector,test_set[i,j].\
@@ -176,6 +185,8 @@ class ICAModel(MLModel):
                     neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                          neighbors[k]]
                 current_feature_vector = true_label_mat[neighbor_indices,j]
+                current_feature_vector = self.convert_to_binary(
+                                            current_feature_vector)
                 if self.use_local_features:
                     current_feature_vector = np.append(
                         current_feature_vector,test_set[i,j].\
@@ -201,6 +212,8 @@ class ICAModel(MLModel):
                     neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
                                                          neighbors[k]]
                 current_feature_vector = true_label_mat[neighbor_indices,j-1]
+                current_feature_vector = self.convert_to_binary(
+                                            current_feature_vector)
                 if self.use_local_features:
                     current_feature_vector = np.append(
                         current_feature_vector,test_set[i,j].\
@@ -220,7 +233,24 @@ class ICAModel(MLModel):
                ' matrix shape don\'t match'
         Y_true = [node.true_label for row in test_set for node in row]
         return confusion_matrix(Y_true, np.ravel(Y_pred))
-    
+
+    def convert_to_binary(self,feature_mat):
+        if len(feature_mat.shape) > 2:
+            raise TypeError('The input matrix dimension > 2')
+        elif len(feature_mat.shape) == 1:
+#             col_count, = feature_mat.shape
+#             bin_mat = np.zeros((col_count,4),dtype=np.bool_)
+#             bin_mat[np.arange(col_count),feature_mat] = 1
+            feature_mat.shape = (1,) + feature_mat.shape 
+        row_count,col_count = feature_mat.shape
+        bin_mat = np.empty((row_count,0),dtype=np.bool_)
+        for i in np.arange(col_count):
+            col = np.zeros((row_count,4), dtype=np.bool_)
+            col[np.arange(row_count),feature_mat[:,i]] = 1
+            bin_mat = np.append(bin_mat, col, axis=1)
+        
+        return bin_mat
+
     @deprecated
     def fit_by_df(self,traindays):
         sensor_ids = np.sort(traindays.moteid.unique())

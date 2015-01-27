@@ -10,7 +10,7 @@ from joint.iterative_classifier import ICAModel
 def main():
     train_set,test_set = convert_time_window_df_randomvar(True)
     use_local_features=False
-    use_current_time=True
+    use_current_time=False
     print 'immediate update\t', 'No'
     print 'use local feature\t', 'Yes' if use_local_features else 'No'
     print 'previous time/current time\t', 'C' if use_current_time else 'P'
@@ -22,10 +22,10 @@ def main():
         icaModel.fit(train_set)
 #     Y_pred = icaModel.predict(test_set, maxiter=10)
 #     Y_pred = icaModel.predict_by_local_classifiers(train_set)
-        Y_pred = icaModel.predict_with_neighbors_true_labels_current_time(
+        Y_pred = icaModel.predict_with_neighbors_true_labels_previous_time(
                                                         train_set)
         train_acc = icaModel.compute_accuracy(train_set, Y_pred)
-        Y_pred = icaModel.predict_with_neighbors_true_labels_current_time(
+        Y_pred = icaModel.predict_with_neighbors_true_labels_previous_time(
                                                         test_set)
         test_acc = icaModel.compute_accuracy(test_set, Y_pred)
         print C,'\t',train_acc,'\t',test_acc
