@@ -47,11 +47,15 @@ class ICAModel(MLModel):
         self.immediate_update = immediate_update
     
     def fit(self, train_set):
-        sensor_ID_dict = dict()
-        count = 0
-        for sensor_node in train_set[:,0]:
-            sensor_ID_dict[sensor_node.sensor_id] = count
-            count += 1
+        if self.use_current_time:
+            self.fit_current_time(train_set)
+        else: #previous time slice
+#             raise NotImplementedError('Train on previous time relational feature'+
+#                                       'has not been implemented yet.')
+            self.fit_previous_time(train_set)
+    def fit_current_time(self, train_set):
+        idlist = np.vectorize(lambda x: x.sensor_id)(train_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         local_feature_vector_len = len(train_set[0,0].local_feature_vector)
         X_local_train = np.empty(shape=train_set.shape+
                                  (local_feature_vector_len,),dtype=np.int8)
@@ -69,8 +73,8 @@ class ICAModel(MLModel):
                 Y_train[i,j] = train_set[i,j].true_label
                 for k in range(relat_feature_vector_len):
                     X_relat_train[i,j,k] = train_set[
-                        sensor_ID_dict[train_set[i,j].neighbors[k]],j].\
-                        true_label  
+                            sensor_ID_dict[train_set[i,j].neighbors[k]],j].\
+                            true_label
             self.local_classifier[i] = self.local_classifier_name(
                                         C=self.local_classifier_C)
             self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
@@ -89,6 +93,50 @@ class ICAModel(MLModel):
                                 X_local_train[i,:], axis=1), Y_train[i,:])
                 else:
                     self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,:])
+
+    def fit_previous_time(self, train_set):
+        idlist = np.vectorize(lambda x: x.sensor_id)(train_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
+        local_feature_vector_len = len(train_set[0,0].local_feature_vector)
+        X_local_train = np.empty(shape=train_set.shape+
+                                 (local_feature_vector_len,),dtype=np.int8)
+        Y_train = np.empty(shape=train_set.shape,dtype=np.int8)
+        relat_feature_vector_len = len(train_set[0,0].neighbors)
+        row_count,col_count = train_set.shape
+        X_relat_train = np.empty(shape=(row_count, col_count - 1,
+                                    relat_feature_vector_len),dtype=np.int8)
+        if self.is_relat_feature_binary:
+            X_relat_train_bin = np.empty(shape=(row_count, col_count - 1,
+                                     relat_feature_vector_len*4),dtype=np.int8)
+        for i in range(row_count):
+            for j in range(col_count):
+                X_local_train[i,j] = train_set[i,j].local_feature_vector
+                Y_train[i,j] = train_set[i,j].true_label
+            self.local_classifier[i] = self.local_classifier_name(
+                                        C=self.local_classifier_C)
+            self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
+        for i in range(row_count):
+            for j in range(1,col_count):
+                for k in range(relat_feature_vector_len):
+                    X_relat_train[i,j-1,k] = train_set[
+                        sensor_ID_dict[train_set[i,j].neighbors[k]],j-1].\
+                            true_label
+            self.relat_classifier[i] = self.relat_classifier_name(
+                                        C=self.relat_classifier_C)
+            if self.is_relat_feature_binary:
+                X_relat_train_bin[i] = self.convert_to_binary(X_relat_train[i])
+                if self.use_local_features:
+                    self.relat_classifier[i].fit(np.append(X_relat_train_bin[i,:],
+                                X_local_train[i,1:], axis=1), Y_train[i,1:])
+                else:
+                    self.relat_classifier[i].fit(X_relat_train_bin[i,:], Y_train[i,1:])
+            else:
+                if self.use_local_features:
+                    self.relat_classifier[i].fit(np.append(X_relat_train[i,:],
+                                X_local_train[i,1:], axis=1), Y_train[i,1:])
+                else:
+                    self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,1:])
+
 
     def predict_by_local_classifiers(self, test_set, evidence_mat=None):
         if evidence_mat is None:
@@ -111,13 +159,9 @@ class ICAModel(MLModel):
     def predict(self, test_set, maxiter=5, evidence_mat=None):
         if evidence_mat is None:
             evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
-        Y_pred = self.predict_by_local_classifiers(test_set, maxiter,
-                                                   evidence_mat)
-        sensor_ID_dict = dict()
-        count = 0
-        for sensor_node in test_set[:,0]:
-            sensor_ID_dict[sensor_node.sensor_id] = count
-            count += 1
+        Y_pred = self.predict_by_local_classifiers(test_set, evidence_mat)
+        idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         if self.use_current_time:
             return self.__predict_current_time(test_set, maxiter, evidence_mat,
                                              Y_pred, sensor_ID_dict)
@@ -127,18 +171,12 @@ class ICAModel(MLModel):
             
     def __predict_current_time(self, test_set, maxiter, evidence_mat, Y_pred,
                              sensor_ID_dict):
-        num_neighbor = len(test_set[0,0].neighbors)
         Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.int8)
-#         row_count,col_count = test_set.shape
         nonevid_indices = np.where(evidence_mat == 0)
         for count in range(maxiter):
             for i,j in zip(nonevid_indices[0],nonevid_indices[1]):
-#             for i in range(row_count):
-#                 for j in range(col_count):
-                neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
-                for k in range(num_neighbor):
-                    neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
-                                                         neighbors[k]]
+                neighbor_indices = self.get_neighbor_indices(test_set[i,j],
+                                             sensor_ID_dict)
                 current_feature_vector = Y_pred[neighbor_indices,j]
                 if self.is_relat_feature_binary:
                     current_feature_vector = self.convert_to_binary(
@@ -155,16 +193,13 @@ class ICAModel(MLModel):
     def __predict_previous_time(self, test_set, maxiter, evidence_mat, Y_pred,
                              sensor_ID_dict):
         row_count,col_count = test_set.shape
-        num_neighbor = len(test_set[0,0].neighbors)
         Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.int8)
         Y_pred_first_col = Y_pred[:,0]
         for count in range(maxiter):
             for i in range(row_count):
                 for j in range(1,col_count):
-                    neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
-                    for k in range(num_neighbor):
-                        neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
-                                                             neighbors[k]]
+                    neighbor_indices = self.get_neighbor_indices(test_set[i,j],
+                                             sensor_ID_dict)
                     current_feature_vector = Y_pred[neighbor_indices,j-1]
                     if self.is_relat_feature_binary:
                         current_feature_vector = self.convert_to_binary(
@@ -180,21 +215,15 @@ class ICAModel(MLModel):
         return Y_pred
     
     def predict_with_neighbors_true_labels_current_time(self,test_set):
-        sensor_ID_dict = dict()
-        count = 0
-        for sensor_node in test_set[:,0]:
-            sensor_ID_dict[sensor_node.sensor_id] = count
-            count += 1
+        idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         row_count,col_count = test_set.shape
-        num_neighbor = len(test_set[0,0].neighbors)
         true_label_mat = np.vectorize(lambda x: x.true_label)(test_set)
         Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
         for i in range(row_count):
             for j in range(0,col_count):
-                neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
-                for k in range(num_neighbor):
-                    neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
-                                                         neighbors[k]]
+                neighbor_indices = self.get_neighbor_indices(test_set[i,j],
+                                                             sensor_ID_dict)
                 current_feature_vector = true_label_mat[neighbor_indices,j]
                 if self.is_relat_feature_binary:
                     current_feature_vector = self.convert_to_binary(
@@ -208,21 +237,16 @@ class ICAModel(MLModel):
         return Y_pred
     
     def predict_with_neighbors_true_labels_previous_time(self,test_set):
-        sensor_ID_dict = dict()
-        count = 0
-        for sensor_node in test_set[:,0]:
-            sensor_ID_dict[sensor_node.sensor_id] = count
-            count += 1
+        idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         row_count,col_count = test_set.shape
-        num_neighbor = len(test_set[0,0].neighbors)
         true_label_mat = np.vectorize(lambda x: x.true_label)(test_set)
         Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
         for i in range(row_count):
             for j in range(1,col_count):
-                neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
-                for k in range(num_neighbor):
-                    neighbor_indices[k] = sensor_ID_dict[test_set[i,j].\
-                                                         neighbors[k]]
+                neighbor_indices = self.get_neighbor_indices(test_set[i,j],
+                                                             sensor_ID_dict)
+#                 neighbor_indices = np.append(i,neighbor_indices)
                 current_feature_vector = true_label_mat[neighbor_indices,j-1]
                 if self.is_relat_feature_binary:
                     current_feature_vector = self.convert_to_binary(
@@ -234,7 +258,14 @@ class ICAModel(MLModel):
                 Y_pred[i,j] = self.relat_classifier[i].predict(
                     current_feature_vector)
         return Y_pred
-                
+
+    def get_neighbor_indices(self, node, sensor_ID_dict):
+        num_neighbor = len(node.neighbors)
+        neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
+        for k in range(num_neighbor):
+            neighbor_indices[k] = sensor_ID_dict[node.neighbors[k]]
+        return neighbor_indices
+
     def compute_accuracy(self,test_set,Y_pred):
         assert test_set.shape == Y_pred.shape,'Test set and predicted label'+\
                ' matrix shape don\'t match'
