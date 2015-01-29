@@ -9,9 +9,9 @@ from joint.iterative_classifier import ICAModel
 
 def main():
     train_set,test_set = convert_time_window_df_randomvar(True)
-    use_local_features=False
+    use_local_features=True
     use_current_time=False
-    is_relat_feature_binary=True
+    is_relat_feature_binary=False
     print 'immediate update\t', 'No'
     print 'use local feature\t', 'Yes' if use_local_features else 'No'
     print 'previous time/current time\t', 'C' if use_current_time else 'P'
