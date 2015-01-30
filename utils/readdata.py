@@ -248,7 +248,8 @@ def train_test_split_by_day(to_be_pickled=False):
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return train_df,test_df
 
-def convert_time_window_df_randomvar(to_be_pickled=False):
+def convert_time_window_df_randomvar(to_be_pickled=False,
+                                     neighborhood_def=np.setdiff1d):
     try:
         train_set,test_set = cPickle.load(
             open(DATA_DIR_PATH+'traintestnodes.pickle','rb'))
@@ -273,7 +274,7 @@ def convert_time_window_df_randomvar(to_be_pickled=False):
             dig_time = np.where(digTime_list==digTime)[0][0]
             local_feature_vector = [row.morning, row.afternoon,
                                     row.evening, row.night]
-            neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
+            neighbors = neighborhood_def(sensor_id, sensor_IDs)
             train_set[sensor_idx,dig_time] = \
                 SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
                              day=row.day, true_label=row.digTemp,

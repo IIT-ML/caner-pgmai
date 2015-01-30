@@ -7,8 +7,12 @@ Created on Jan 19, 2015
 from utils.readdata import convert_time_window_df_randomvar
 from joint.iterative_classifier import ICAModel
 
+import numpy as np
+
 def main():
-    train_set,test_set = convert_time_window_df_randomvar(True)
+    neighborhood_def = independent_back
+    train_set,test_set = convert_time_window_df_randomvar(True,
+                                                          neighborhood_def)
     use_local_features=True
     use_current_time=False
     is_relat_feature_binary=False
@@ -39,5 +43,10 @@ def main():
         test_acc = icaModel.compute_accuracy(test_set, Y_pred)
         print C,'\t', train_acc,'\t',test_acc
 #     print icaModel.compute_confusion_matrix(test_set[:,1:], Y_pred[:,1:])
+
+#neihborhood function list
+def independent_back(self_id, sensor_IDs):
+    return np.setdiff1d(sensor_IDs, [self_id])
+    
 
 main()
