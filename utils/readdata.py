@@ -12,7 +12,7 @@ import itertools
 from node import SensorRVNode
 
 # DATA_DIR_PATH = 'data/'
-DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\data\\'
+DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\dataDays2_3_4-5_6\\'
 
 def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
@@ -235,8 +235,10 @@ def add_day_to_time_window_df(time_window_df=None,to_be_pickled=None):
     return time_window_df
 
 def train_test_split_by_day(to_be_pickled=False):
-    train_days = range(5)
-    test_days = range(5,10)
+#     train_days = range(5)
+#     test_days = range(5,10)
+    train_days = [2,3,4]
+    test_days = [5,6]
     time_window_df = add_day_to_time_window_df()
     train_df = time_window_df[time_window_df.day.isin(train_days)]
     test_df = time_window_df[time_window_df.day.isin(test_days)]
@@ -258,17 +260,17 @@ def convert_time_window_df_randomvar(to_be_pickled=False):
         except(IOError):
             traindays,testdays = train_test_split_by_day(to_be_pickled)
         sensor_IDs = traindays.moteid.unique()
+        digTime_list = traindays.digTime.unique()
         num_sensors = sensor_IDs.shape[0]
         num_dig_time = traindays.digTime.unique().shape[0]
         train_set = np.ndarray(shape=(num_sensors,num_dig_time),
                                dtype=SensorRVNode)
-        for sensor,digTime in itertools.product(traindays.moteid.unique(),
-                                                traindays.digTime.unique()):
+        for sensor,digTime in itertools.product(sensor_IDs, digTime_list):
             row = traindays[(traindays.moteid==sensor) &
                             (traindays.digTime==digTime)].iloc[0]
             sensor_id = row.moteid
             sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
-            dig_time = row.digTime - 1
+            dig_time = np.where(digTime_list==digTime)[0][0]
             local_feature_vector = [row.morning, row.afternoon,
                                     row.evening, row.night]
             neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
@@ -280,11 +282,12 @@ def convert_time_window_df_randomvar(to_be_pickled=False):
         num_dig_time = testdays.digTime.unique().shape[0]
         test_set = np.ndarray(shape=(num_sensors,num_dig_time),
                                dtype=SensorRVNode)
+        digTime_list = testdays.digTime.unique()
         for i in range(len(testdays)):
             row = testdays.iloc[i]
             sensor_id = row.moteid
             sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
-            dig_time = row.digTime - 241
+            dig_time = np.where(digTime_list==row.digTime)[0][0]
     #         print sensor_id,'\t',sensor_idx,'\t',dig_time
             local_feature_vector = [row.morning, row.afternoon,
                                     row.evening, row.night]

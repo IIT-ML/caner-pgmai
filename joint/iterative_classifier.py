@@ -47,36 +47,42 @@ class ICAModel(MLModel):
         self.immediate_update = immediate_update
     
     def fit(self, train_set):
-        if self.use_current_time:
-            self.fit_current_time(train_set)
-        else: #previous time slice
-            self.fit_previous_time(train_set)
-    
-    def fit_current_time(self, train_set):
         idlist = np.vectorize(lambda x: x.sensor_id)(train_set[:,0])
         sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         local_feature_vector_len = len(train_set[0,0].local_feature_vector)
         X_local_train = np.empty(shape=train_set.shape+
                                  (local_feature_vector_len,),dtype=np.int8)
         Y_train = np.empty(shape=train_set.shape,dtype=np.int8)
+        row_count,col_count = train_set.shape
+        for i in range(row_count):
+            for j in range(col_count):
+                X_local_train[i,j] = train_set[i,j].local_feature_vector
+                Y_train[i,j] = train_set[i,j].true_label
+            self.local_classifier[i] = self.local_classifier_name(
+                                        C=self.local_classifier_C)
+            self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
+        if self.use_current_time:
+            self.fit_current_time(train_set, sensor_ID_dict, X_local_train,
+                                  Y_train)
+        else: #previous time slice
+            self.fit_previous_time(train_set,sensor_ID_dict, X_local_train,
+                                  Y_train)
+    
+    def fit_current_time(self, train_set, sensor_ID_dict, X_local_train,
+                         Y_train):
+        row_count,col_count = train_set.shape
         relat_feature_vector_len = len(train_set[0,0].neighbors)
         X_relat_train = np.empty(shape=train_set.shape+
                                  (relat_feature_vector_len,),dtype=np.int8)
         if self.is_relat_feature_binary:
             X_relat_train_bin = np.empty(shape=train_set.shape+
                                      (relat_feature_vector_len*4,),dtype=np.int8)
-        row_count,col_count = train_set.shape
         for i in range(row_count):
             for j in range(col_count):
-                X_local_train[i,j] = train_set[i,j].local_feature_vector
-                Y_train[i,j] = train_set[i,j].true_label
                 for k in range(relat_feature_vector_len):
                     X_relat_train[i,j,k] = train_set[
                             sensor_ID_dict[train_set[i,j].neighbors[k]],j].\
                             true_label
-            self.local_classifier[i] = self.local_classifier_name(
-                                        C=self.local_classifier_C)
-            self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
             self.relat_classifier[i] = self.relat_classifier_name(
                                         C=self.relat_classifier_C)
             if self.is_relat_feature_binary:
@@ -93,21 +99,9 @@ class ICAModel(MLModel):
                 else:
                     self.relat_classifier[i].fit(X_relat_train[i,:], Y_train[i,:])
 
-    def fit_previous_time(self, train_set):
-        idlist = np.vectorize(lambda x: x.sensor_id)(train_set[:,0])
-        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
-        local_feature_vector_len = len(train_set[0,0].local_feature_vector)
-        X_local_train = np.empty(shape=train_set.shape+
-                                 (local_feature_vector_len,),dtype=np.int8)
-        Y_train = np.empty(shape=train_set.shape,dtype=np.int8)
+    def fit_previous_time(self, train_set, sensor_ID_dict, X_local_train,
+                         Y_train):
         row_count,col_count = train_set.shape
-        for i in range(row_count):
-            for j in range(col_count):
-                X_local_train[i,j] = train_set[i,j].local_feature_vector
-                Y_train[i,j] = train_set[i,j].true_label
-            self.local_classifier[i] = self.local_classifier_name(
-                                        C=self.local_classifier_C)
-            self.local_classifier[i].fit(X_local_train[i,:], Y_train[i,:])
         relat_feature_vector_len = len(train_set[0,0].neighbors) + 1
         X_relat_train = np.empty(shape=(row_count, col_count - 1,
                                     relat_feature_vector_len),dtype=np.int8)
@@ -259,7 +253,7 @@ class ICAModel(MLModel):
                 Y_pred[i,j] = self.relat_classifier[i].predict(
                     current_feature_vector)
         return Y_pred
-
+    
     def get_neighbor_indices(self, node, sensor_ID_dict):
         num_neighbor = len(node.neighbors)
         neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
