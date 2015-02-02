@@ -14,7 +14,7 @@ def main():
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
-    use_current_time=False
+    use_current_time=True
     is_relat_feature_binary=False
     local_classifier_name = 'svm'
     relat_classifier_name = 'svm'
@@ -34,19 +34,23 @@ def main():
         icaModel.fit(train_set)
 #         Y_pred = icaModel.predict(test_set, maxiter=10)
 #     Y_pred = icaModel.predict_by_local_classifiers(train_set)
-        Y_pred = icaModel.predict_with_neighbors_true_labels_previous_time(
+        Y_pred = icaModel.predict_with_neighbors_true_labels_current_time(
                                                         train_set)
         train_acc = icaModel.compute_accuracy(train_set, Y_pred)
-        Y_pred = icaModel.predict_with_neighbors_true_labels_previous_time(
+        Y_pred = icaModel.predict_with_neighbors_true_labels_current_time(
                                                         test_set)
 #         Y_pred = icaModel.predict_by_local_classifiers(test_set)
         test_acc = icaModel.compute_accuracy(test_set, Y_pred)
         print C,'\t', train_acc,'\t',test_acc
 #     print icaModel.compute_confusion_matrix(test_set[:,1:], Y_pred[:,1:])
 
-#neihborhood function list
+#neighborhood function list
 def independent_back(self_id, sensor_IDs):
-    return np.setdiff1d(sensor_IDs, [self_id])
+    neighbors = [(self_id,-1)]
+#     neighbors = []
+    neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[-1]*
+                    (len(sensor_IDs)-1))
+    return neighbors
     
 
 main()

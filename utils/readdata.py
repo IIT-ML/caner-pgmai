@@ -292,7 +292,7 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
     #         print sensor_id,'\t',sensor_idx,'\t',dig_time
             local_feature_vector = [row.morning, row.afternoon,
                                     row.evening, row.night]
-            neighbors = np.setdiff1d(sensor_IDs, [sensor_id])
+            neighbors = neighborhood_def(sensor_id, sensor_IDs)
             test_set[sensor_idx,dig_time] = \
                 SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
                              day=row.day, true_label=row.digTemp,
