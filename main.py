@@ -10,8 +10,8 @@ from joint.iterative_classifier import ICAModel
 import numpy as np
 
 def main():
-    neighborhood_def = independent_back
-    train_set,test_set = convert_time_window_df_randomvar(True,
+    neighborhood_def = itself_current_only
+    train_set,test_set = convert_time_window_df_randomvar(False,
                                                           neighborhood_def)
     use_local_features=True
     use_current_time=True
@@ -48,9 +48,31 @@ def main():
 def independent_back(self_id, sensor_IDs):
     neighbors = [(self_id,-1)]
 #     neighbors = []
-    neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[-1]*
+#     neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[-1]*
+#                     (len(sensor_IDs)-1))
+    return neighbors
+
+def all_nodes_current_time(self_id, sensor_IDs):
+    neighbors = []
+    neighbors += zip(sensor_IDs,[0]*len(sensor_IDs))
+    return neighbors
+
+def all_others_current_time(self_id, sensor_IDs):
+    neighbors = []
+    neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
                     (len(sensor_IDs)-1))
     return neighbors
-    
+
+def itself_current_others_previous(self_id, sensor_IDs):
+    neighbors = [(self_id,-1)]
+    neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
+                    (len(sensor_IDs)-1))
+    return neighbors
+
+def itself_current_only(self_id, sensor_IDs):
+    neighbors = [(self_id,0)]
+#     neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
+#                     (len(sensor_IDs)-1))
+    return neighbors    
 
 main()

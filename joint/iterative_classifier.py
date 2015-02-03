@@ -5,7 +5,7 @@ Created on Jan 14, 2015
 '''
 
 from ml_model import MLModel
-from utils.decorations import deprecated
+from utils.decorations import deprecated,cheating
 from utils import constants
 
 from sklearn.linear_model import LogisticRegression
@@ -171,6 +171,30 @@ class ICAModel(MLModel):
             Y_pred = Y_pred_temp.copy()
         return Y_pred
     
+    @cheating
+    def predict_with_neighbors_true_labels_current_time(self,test_set):
+        idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
+        row_count,col_count = test_set.shape
+        Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
+        for i in range(row_count):
+            for j in range(0,col_count):
+                current_feature_vector = self.generate_relat_feature_vector(
+                                                test_set, i, j, sensor_ID_dict)
+                if current_feature_vector[0] == constants.INF:
+                    Y_pred[i,j] = constants.INF
+                else:
+                    if self.is_relat_feature_binary:
+                        current_feature_vector = self.convert_to_binary(
+                                                    current_feature_vector)
+                    if self.use_local_features:
+                        current_feature_vector = np.append(
+                            current_feature_vector,test_set[i,j].\
+                            local_feature_vector)
+                    Y_pred[i,j] = self.relat_classifier[i].predict(
+                                        current_feature_vector)
+        return Y_pred
+
     def __predict_previous_time(self, test_set, maxiter, evidence_mat, Y_pred,
                              sensor_ID_dict):
         row_count,col_count = test_set.shape
@@ -194,33 +218,6 @@ class ICAModel(MLModel):
                         current_feature_vector)
             Y_pred = Y_pred_temp.copy()
             Y_pred[:,0] = Y_pred_first_col
-        return Y_pred
-    
-    def predict_with_neighbors_true_labels_current_time(self,test_set):
-        idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
-        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
-        row_count,col_count = test_set.shape
-#         true_label_mat = np.vectorize(lambda x: x.true_label)(test_set)
-        Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
-        for i in range(row_count):
-            for j in range(0,col_count):
-#                 neighbor_indices = self.get_neighbor_indices(test_set[i,j],
-#                                                              sensor_ID_dict)
-#                 current_feature_vector = true_label_mat[neighbor_indices,j]
-                current_feature_vector = self.generate_relat_feature_vector(
-                                                test_set, i, j, sensor_ID_dict)
-                if current_feature_vector[0] == constants.INF:
-                    Y_pred[i,j] = constants.INF
-                else:
-                    if self.is_relat_feature_binary:
-                        current_feature_vector = self.convert_to_binary(
-                                                    current_feature_vector)
-                    if self.use_local_features:
-                        current_feature_vector = np.append(
-                            current_feature_vector,test_set[i,j].\
-                            local_feature_vector)
-                    Y_pred[i,j] = self.relat_classifier[i].predict(
-                                        current_feature_vector)
         return Y_pred
 
     def get_neighbor_indices(self, node, sensor_ID_dict):
