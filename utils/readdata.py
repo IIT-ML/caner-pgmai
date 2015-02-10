@@ -252,7 +252,7 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
                                      neighborhood_def=np.setdiff1d):
     try:
         train_set,test_set = cPickle.load(
-            open(DATA_DIR_PATH+'traintestnodes.pickle','rb'))
+            open(DATA_DIR_PATH+neighborhood_def.__name__+'.pickle','rb'))
 #         raise IOError
     except(IOError):
         try:
@@ -300,8 +300,8 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
                              is_observed=False, neighbors=neighbors)
         if to_be_pickled:
             cPickle.dump((train_set,test_set),
-                     open(DATA_DIR_PATH+'traintestnodes.pickle','wb'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
+                     open(DATA_DIR_PATH+neighborhood_def.__name__+'.pickle',
+                    'wb'),protocol=cPickle.HIGHEST_PROTOCOL)
     return train_set,test_set
 
 #test1

@@ -102,7 +102,9 @@ class ICAModel(MLModel):
                 else:
                     self.relat_classifier[i].fit(X_relat_train, Y_relat_train)
     
-    def generate_relat_feature_vector(self, data_set, node_i, node_j, node_ID_dict):
+    def generate_relat_feature_vector(self, data_set, node_i, node_j, 
+                                      node_ID_dict,Y_pred=None,
+                                      evidence_mat=None):
         current_node = data_set[node_i,node_j]
         relat_feature_vector_len = len(current_node.neighbors)
         relat_feature_vector = np.empty(shape=(relat_feature_vector_len,),
@@ -114,9 +116,21 @@ class ICAModel(MLModel):
                 relat_feature_vector = np.ones((relat_feature_vector_len,),
                                                dtype=np.int8) * constants.INF
                 break
-            relat_feature_vector[k] = data_set[
-                    node_ID_dict[neighbor_id],neighbor_time].\
-                    true_label
+            if Y_pred is None:
+                relat_feature_vector[k] = data_set[
+                        node_ID_dict[neighbor_id],neighbor_time].\
+                        true_label
+            else:
+                assert evidence_mat is not None,'The evidence mat is ' + \
+                'not given whereas Y_pred is given. There\'s bug in the flow'
+                if evidence_mat[node_ID_dict[neighbor_id],neighbor_time] == 1:
+                    relat_feature_vector[k] = data_set[
+                        node_ID_dict[neighbor_id],neighbor_time].\
+                        true_label
+                else:
+                    relat_feature_vector[k] = Y_pred[
+                        node_ID_dict[neighbor_id],neighbor_time]
+                
         return relat_feature_vector
 
     def predict_by_local_classifiers(self, test_set, evidence_mat=None):
@@ -143,42 +157,43 @@ class ICAModel(MLModel):
         Y_pred = self.predict_by_local_classifiers(test_set, evidence_mat)
         idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
         sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
-        if self.use_current_time:
-            return self.__predict_current_time(test_set, maxiter, evidence_mat,
+        return self.__predict_current_time(test_set, maxiter, evidence_mat,
                                              Y_pred, sensor_ID_dict)
-        else:
-            return self.__predict_previous_time(test_set, maxiter, evidence_mat,
-                                             Y_pred, sensor_ID_dict)
+
             
     def __predict_current_time(self, test_set, maxiter, evidence_mat, Y_pred,
                              sensor_ID_dict):
         Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.int8)
-        nonevid_indices = np.where(evidence_mat == 0)
-        for count in range(maxiter):
-            for i,j in zip(nonevid_indices[0],nonevid_indices[1]):
-                neighbor_indices = self.get_neighbor_indices(test_set[i,j],
-                                             sensor_ID_dict)
-                current_feature_vector = Y_pred[neighbor_indices,j]
-                if self.is_relat_feature_binary:
-                    current_feature_vector = self.convert_to_binary(
-                                                current_feature_vector)
-                if self.use_local_features:
-                    current_feature_vector = np.append(
-                        current_feature_vector,test_set[i,j].\
-                        local_feature_vector)
-                Y_pred_temp[i,j] = self.relat_classifier[i].predict(
-                    current_feature_vector)
+#         nonevid_indices = np.where(evidence_mat == 0)
+        
+        row_count,col_count = test_set.shape
+        for _ in range(maxiter):
+            for i in range(row_count):
+                for j in range(col_count):
+                    current_feature_vector = self.generate_relat_feature_vector(
+                                                test_set, i, j, sensor_ID_dict,
+                                                Y_pred, evidence_mat)
+                    if current_feature_vector[0] != constants.INF:
+                        if self.is_relat_feature_binary:
+                            current_feature_vector = self.convert_to_binary(
+                                                        current_feature_vector)
+                        if self.use_local_features:
+                            current_feature_vector = np.append(
+                                current_feature_vector,test_set[i,j].\
+                                local_feature_vector)
+                        Y_pred_temp[i,j] = self.relat_classifier[i].predict(
+                            current_feature_vector)
             Y_pred = Y_pred_temp.copy()
         return Y_pred
     
     @cheating
-    def predict_with_neighbors_true_labels_current_time(self,test_set):
+    def predict_with_neighbors_true_labels(self,test_set):
         idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
         sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         row_count,col_count = test_set.shape
         Y_pred = np.ones(shape=test_set.shape,dtype = np.int8)*(-1)
         for i in range(row_count):
-            for j in range(0,col_count):
+            for j in range(col_count):
                 current_feature_vector = self.generate_relat_feature_vector(
                                                 test_set, i, j, sensor_ID_dict)
                 if current_feature_vector[0] == constants.INF:
@@ -195,31 +210,6 @@ class ICAModel(MLModel):
                                         current_feature_vector)
         return Y_pred
 
-    def __predict_previous_time(self, test_set, maxiter, evidence_mat, Y_pred,
-                             sensor_ID_dict):
-        row_count,col_count = test_set.shape
-        Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.int8)
-        Y_pred_first_col = Y_pred[:,0]
-        for count in range(maxiter):
-            for i in range(row_count):
-                for j in range(1,col_count):
-                    neighbor_indices = self.get_neighbor_indices(test_set[i,j],
-                                             sensor_ID_dict)
-                    neighbor_indices = np.append(i,neighbor_indices)
-                    current_feature_vector = Y_pred[neighbor_indices,j-1]
-                    if self.is_relat_feature_binary:
-                        current_feature_vector = self.convert_to_binary(
-                                                current_feature_vector)
-                    if self.use_local_features:
-                        current_feature_vector = np.append(
-                            current_feature_vector,test_set[i,j].\
-                            local_feature_vector)
-                    Y_pred_temp[i,j] = self.relat_classifier[i].predict(
-                        current_feature_vector)
-            Y_pred = Y_pred_temp.copy()
-            Y_pred[:,0] = Y_pred_first_col
-        return Y_pred
-
     def get_neighbor_indices(self, node, sensor_ID_dict):
         num_neighbor = len(node.neighbors)
         neighbor_indices = np.empty((num_neighbor,),dtype=np.int8)
@@ -227,11 +217,35 @@ class ICAModel(MLModel):
             neighbor_indices[k] = sensor_ID_dict[node.neighbors[k]]
         return neighbor_indices
 
-    def compute_accuracy(self,test_set,Y_pred):
+    def compute_accuracy(self,test_set,Y_pred, type_=0, evidence_mat=None):
+        # type_ 0 is the accuracy in which we include everyone with their
+        #     predicted labels
+        # type_ 1 is the accuracy in which we include only the non evidence
+        #     instances
+        # type_ 2 is the one we include again everyone but evidence instances
+        #     participate with true labels.
         assert test_set.shape == Y_pred.shape,'Test set and predicted label'+\
                ' matrix shape don\'t match'
-        Y_true = [node.true_label for row in test_set for node in row]
-        return accuracy_score(Y_true, np.ravel(Y_pred))
+#         Y_true = [node.true_label for row in test_set for node in row]
+        if type_ == 0:
+            Y_true = np.vectorize(lambda x: x.true_label)(test_set)
+        else:
+            assert evidence_mat is not None,'The evidence mat is ' + \
+                'not given whereas type_ 1 or 2 accuracy is selected. ' + \
+                'There\'s bug in the flow'
+            if type_ == 1:
+                if np.sum(evidence_mat) == np.prod(evidence_mat.shape):
+                    return float('nan')
+                Y_true = np.vectorize(lambda x: x.true_label)(test_set[
+                                                    np.invert(evidence_mat)])
+                Y_pred = Y_pred[np.invert(evidence_mat)]
+            elif type_ == 2:
+                Y_true = np.vectorize(lambda x: x.true_label)(test_set)
+                Y_pred[evidence_mat] = Y_true[evidence_mat]
+            else:
+                raise ValueError('type_ is set a non legit value, it must ' + \
+                                 'be {0,1,2}')
+        return accuracy_score(np.ravel(Y_true), np.ravel(Y_pred))
     
     def compute_confusion_matrix(self,test_set, Y_pred):
         assert test_set.shape == Y_pred.shape,'Test set and predicted label'+\
