@@ -133,28 +133,20 @@ class ICAModel(MLModel):
                 
         return relat_feature_vector
 
-    def predict_by_local_classifiers(self, test_set, evidence_mat=None):
-        if evidence_mat is None:
-            evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
-        
+    def predict_by_local_classifiers(self, test_set):
         Y_pred = np.empty(shape=test_set.shape,dtype = np.int8)
-        evid_indices = np.where(evidence_mat == 1)
-        try:
-            Y_pred[evid_indices] = np.vectorize(lambda x: x.true_label)(
-                                                test_set[evid_indices])
-        except(IndexError):
-            pass
-        nonevid_indices = np.where(evidence_mat == 0)
-        for i,j in zip(nonevid_indices[0],nonevid_indices[1]):
-            Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
+        row_count,col_count = test_set.shape
+        for i in range(row_count):
+            for j in range(col_count):
+                Y_pred[i,j] = self.local_classifier[i].predict(test_set[i,j].\
                                                         local_feature_vector)
+
         return Y_pred
-        
     
     def predict(self, test_set, maxiter=5, evidence_mat=None):
         if evidence_mat is None:
             evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
-        Y_pred = self.predict_by_local_classifiers(test_set, evidence_mat)
+        Y_pred = self.predict_by_local_classifiers(test_set)
         idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
         sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
         return self.__predict_current_time(test_set, maxiter, evidence_mat,

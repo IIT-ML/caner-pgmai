@@ -10,9 +10,12 @@ from ai.selection_strategy import RandomStrategy
 
 import numpy as np
 import cPickle
+from time import time
+
 
 def main():
-    neighborhood_def = itself_current_only
+    begin = time()
+    neighborhood_def = all_others_current_time
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
@@ -24,16 +27,16 @@ def main():
     print 'use local feature\t', 'Yes' if use_local_features else 'No'
     print 'previous time/current time\t', 'C' if use_current_time else 'P'
     print 'relative features\t', 'binary' if is_relat_feature_binary else 'ordinal' 
-#     C_values = [10]
-    C_values = [0.01, 0.02, 0.05, 0.1, 1, 10, 100, 1000, 10000]
+    C_values = [10]
+#     C_values = [0.01, 0.02, 0.05, 0.1, 1, 10, 100, 1000, 10000]
     random_strategy = RandomStrategy()
     pool = [(i,j) for i in range(test_set.shape[0])
             for j in range(test_set.shape[1])]
 #     for iter_count in xrange(11):
 
     iter_count = 10
-    num_trials = 1
-    rate_range = np.array([0]) #np.arange(0,1.1,0.1)
+    num_trials = 10
+    rate_range = np.arange(0,1.1,0.1)
     
     results = np.empty(shape=(num_trials,rate_range.shape[0],3))
     
@@ -53,23 +56,24 @@ def main():
                                     relat_classifier_C=C,
                                     is_relat_feature_binary=is_relat_feature_binary)
                 icaModel.fit(train_set)
-#                 Y_pred = icaModel.predict_wi(test_set, maxiter=iter_count,
+#                 Y_pred = icaModel.predict(test_set, maxiter=iter_count,
 #                                           evidence_mat=evidence_mat)
-#                 Y_pred = icaModel.predict_by_local_classifiers(test_set, evidence_mat)
-                Y_pred = icaModel.predict_with_neighbors_true_labels(train_set)
-                print icaModel.compute_accuracy(
-                        train_set, Y_pred, type_=0,evidence_mat=evidence_mat)
+                Y_pred = icaModel.predict_by_local_classifiers(test_set)
+#                 Y_pred = icaModel.predict_with_neighbors_true_labels(train_set)
+#                 print icaModel.compute_accuracy(
+#                         train_set, Y_pred, type_=0,evidence_mat=evidence_mat)
 #                 print
 #                 print icaModel.compute_confusion_matrix(test_set, Y_pred)
-#                 results[current_trial,rate_idx,0] = icaModel.compute_accuracy(
-#                         test_set, Y_pred, type_=0,evidence_mat=evidence_mat)
-#                 results[current_trial,rate_idx,1] = icaModel.compute_accuracy(
-#                         test_set, Y_pred, type_=1,evidence_mat=evidence_mat)
-#                 results[current_trial,rate_idx,2] = icaModel.compute_accuracy(
-#                         test_set, Y_pred, type_=2,evidence_mat=evidence_mat)
-#     cPickle.dump(results,open('dataDays2_3_4-5_6/resultsUNCSampling.pickle','wb'))
-
-
+                results[current_trial,rate_idx,0] = icaModel.compute_accuracy(
+                        test_set, Y_pred, type_=0,evidence_mat=evidence_mat)
+                results[current_trial,rate_idx,1] = icaModel.compute_accuracy(
+                        test_set, Y_pred, type_=1,evidence_mat=evidence_mat)
+                results[current_trial,rate_idx,2] = icaModel.compute_accuracy(
+                        test_set, Y_pred, type_=2,evidence_mat=evidence_mat)
+    cPickle.dump(results,open(
+        'dataDays2_3_4-5_6/resultsRandomSamplingLocalOnly.pickle','wb'))
+    print 'Duration: ',time() - begin
+    print 'Process ended'
 
 
 #neighborhood function list
