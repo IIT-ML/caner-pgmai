@@ -5,7 +5,7 @@ Created on Jan 14, 2015
 '''
 
 from abc import ABCMeta, abstractmethod
-
+import numpy as np
 
 # This is an abstract class, it's not meant to be
 # instantiated, although the interpreter lets us do
@@ -15,6 +15,16 @@ class MLModel(object):
     
     def __init__(self):
         pass
+    
+    @staticmethod
+    def _dilate_mat(mat, label_vec, scheme_vec):
+        if type(scheme_vec) is list:
+            scheme_vec = np.array(scheme_vec)
+        dilated_mat = np.zeros(shape=(mat.shape[0],scheme_vec.shape[0]))
+        for i in range(label_vec.shape[0]):
+            target_idx = np.where(label_vec[i] == scheme_vec)[0][0]
+            dilated_mat[:,target_idx] = mat[:,i]
+        return dilated_mat
     
     '''
     train_mat should be a two dimentional matrix composed of RandomVarNode

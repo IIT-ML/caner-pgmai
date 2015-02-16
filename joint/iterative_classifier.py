@@ -87,7 +87,8 @@ class ICAModel(MLModel):
                                                 [X_local_train[i,j]], axis=0)
                     Y_relat_train = np.append(Y_relat_train,Y_train[i,j])
             self.relat_classifier[i] = self.relat_classifier_name(
-                                        C=self.relat_classifier_C)
+                                        C=self.relat_classifier_C,
+                                        probability=True)
             if self.is_relat_feature_binary:
                 X_relat_train_bin = self.convert_to_binary(X_relat_train)
                 if self.use_local_features:
@@ -177,6 +178,42 @@ class ICAModel(MLModel):
                             current_feature_vector)
             Y_pred = Y_pred_temp.copy()
         return Y_pred
+    
+    def predict_proba(self, test_set, label_scheme=None, maxiter=5,
+                      evidence_mat=None):
+        if label_scheme is None:
+            label_scheme = np.unique(np.vectorize(lambda x: x.true_label)
+                                     (test_set))
+        if evidence_mat is None:
+            evidence_mat = np.zeros(test_set.shape,dtype=np.bool8)
+        Y_prob = np.empty(shape=test_set.shape+(4,),dtype=np.float_)
+        Y_pred = self.predict(test_set, maxiter, evidence_mat)
+        row_count,col_count = test_set.shape
+        idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
+        sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
+        for i in range(row_count):
+            for j in range(col_count):
+                current_feature_vector = self.generate_relat_feature_vector(
+                                            test_set, i, j, sensor_ID_dict,
+                                            Y_pred, evidence_mat)
+                if current_feature_vector[0] != constants.INF:
+                    if self.is_relat_feature_binary:
+                        current_feature_vector = self.convert_to_binary(
+                                                    current_feature_vector)
+                    if self.use_local_features:
+                        current_feature_vector = np.append(
+                            current_feature_vector,test_set[i,j].\
+                            local_feature_vector)
+                    try:
+                        probs = self.relat_classifier[i].predict_proba(
+                            current_feature_vector)
+                        Y_prob[i,j] = self._dilate_mat(probs,
+                                    self.relat_classifier[i].classes_,
+                                    label_scheme) 
+                    except(ValueError):
+                        print 'sensor: ', i, 'instance:', j
+                        print ValueError
+        return Y_prob
     
     @cheating
     def predict_with_neighbors_true_labels(self,test_set):
