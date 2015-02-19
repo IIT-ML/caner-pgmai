@@ -6,45 +6,34 @@ Created on Jan 19, 2015
 
 from utils.readdata import convert_time_window_df_randomvar
 from joint.iterative_classifier import ICAModel
+from joint.iterative_regressor import IRAModel
 from ai.selection_strategy import RandomStrategy,UNCSampling
 
 import numpy as np
 import cPickle
 from time import time
 
-def test_predict_proba():
+def main_IRA():
     begin = time()
     neighborhood_def = all_others_current_time
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
-    use_current_time=True
-    is_relat_feature_binary=False
-    local_classifier_name = 'svm'
-    relat_classifier_name = 'svm'
-    print 'immediate update\t', 'No'
+    local_regressor_name = 'lasso'
+    relat_regressor_name = 'lasso'
     print 'use local feature\t', 'Yes' if use_local_features else 'No'
-    print 'previous time/current time\t', 'C' if use_current_time else 'P'
-    print 'relative features\t', 'binary' if is_relat_feature_binary else 'ordinal'
-    C = 10
-    icaModel = ICAModel(local_classifier_name=local_classifier_name,
-                        relat_classifier_name=relat_classifier_name,
-                        use_local_features=use_local_features,
-                        use_current_time=use_current_time,
-                        relat_classifier_C=C,
-                        is_relat_feature_binary=is_relat_feature_binary)
-    icaModel.fit(train_set)
-#     class_probs = icaModel.predict_proba(test_set,label_scheme=range(4))
-    uncSampling = UNCSampling()
-    pool = [(i,j) for i in range(test_set.shape[0])
-        for j in range(test_set.shape[1])]
-    uncSampling.choices(icaModel, test_set, pool, 4)
-    
-    
-    print 'Duration: ',time() - begin
-    print 'Process ended'
+    print 'local regression algorithm: ',local_regressor_name
+    print 'relational regression algorithm: ',relat_regressor_name
+    iraModel = IRAModel(local_regressor_name=local_regressor_name,
+                        relat_regressor_name=relat_regressor_name,
+                        use_local_features=use_local_features)
+    iraModel.fit(train_set)
+    Y_pred = iraModel.predict_by_local_regressors(train_set)
+    print iraModel.compute_accuracy(train_set, Y_pred, type_=0)
+    Y_pred = iraModel.predict_by_local_regressors(test_set)
+    print iraModel.compute_accuracy(test_set, Y_pred, type_=0)
 
-def main():
+def main_classify():
     begin = time()
     neighborhood_def = all_others_current_time
     train_set,test_set = convert_time_window_df_randomvar(True,
@@ -52,8 +41,8 @@ def main():
     use_local_features=True
     use_current_time=True
     is_relat_feature_binary=False
-    local_classifier_name = 'svm'
-    relat_classifier_name = 'svm'
+    local_classifier_name = 'ridge'
+    relat_classifier_name = 'ridge'
     print 'immediate update\t', 'No'
     print 'use local feature\t', 'Yes' if use_local_features else 'No'
     print 'previous time/current time\t', 'C' if use_current_time else 'P'
@@ -167,7 +156,7 @@ def apply_func_to_coords(coord_list, shape, func=None):
             marked_mat[coord[0],coord[1]] = func(marked_mat[coord[0],coord[1]])
     return marked_mat
 
-main()
+main_IRA()
 
 #Old code:
 #                 Y_pred = icaModel.predict(train_set, maxiter=10)

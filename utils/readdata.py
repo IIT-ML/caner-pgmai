@@ -9,10 +9,10 @@ import numpy as np
 import cPickle
 import itertools
 
-from node import SensorRVNode
+from utils.node import SensorRVNode
 
 # DATA_DIR_PATH = 'data/'
-DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\dataDays2_3_4-5_6\\'
+DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\regressionDataDays2_3_4-5_6\\'
 
 def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
@@ -75,6 +75,14 @@ def window_data(digitizeddf = None, binCount = 545,
     time_window_df = pd.DataFrame(meanSeries)
     time_window_df.reset_index(level=0, inplace=True)
     time_window_df.reset_index(level=1, inplace=True)
+#     digitize_temperature(time_window_df)
+    if to_be_pickled:
+        cPickle.dump(time_window_df,
+                     open(DATA_DIR_PATH+'time_window_df.pickle','wb'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+    return time_window_df
+
+def digitize_temperature(time_window_df):
     time_window_df['digTemp'] = pd.Series(np.empty((len(time_window_df))),
                                           dtype = np.int16,
                                    index=time_window_df.index)
@@ -84,17 +92,14 @@ def window_data(digitizeddf = None, binCount = 545,
     time_window_df['digTemp'][np.logical_and(time_window_df.temperature >= 22.5,
                            time_window_df.temperature < 25)] = 2
     time_window_df['digTemp'][time_window_df.temperature >= 25] = 3
-    if to_be_pickled:
-        cPickle.dump(time_window_df,
-                     open(DATA_DIR_PATH+'time_window_df.pickle','wb'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-    return time_window_df
+    
 
 def convert_digitized_to_feature_matrix(digitizeddf = None,
                                         time_window_df = None,
                                         binCount = 545,
                                         discarded_sensors = [5,15,18,49],
-                                        to_be_pickled=False):
+                                        to_be_pickled=False,
+                                        sort_column='digTime'):
     if digitizeddf is None:
         try:
             digitizeddf = cPickle.load(open(DATA_DIR_PATH+
@@ -112,8 +117,8 @@ def convert_digitized_to_feature_matrix(digitizeddf = None,
             except(IOError):
                 time_window_df = window_data(digitizeddf=digitizeddf,
                                              to_be_pickled=to_be_pickled)
-        sorted_mat = time_window_df.sort(columns='digTime').\
-                                    as_matrix()[:,(0,3)]
+        sorted_mat = time_window_df.sort(columns=sort_column).\
+                                    as_matrix()[:,(0,-1)]
         if to_be_pickled:
             cPickle.dump(sorted_mat, open(DATA_DIR_PATH+'sorted_mat.pickle',
                         'wb'), protocol=cPickle.HIGHEST_PROTOCOL)
@@ -249,7 +254,8 @@ def train_test_split_by_day(to_be_pickled=False):
     return train_df,test_df
 
 def convert_time_window_df_randomvar(to_be_pickled=False,
-                                     neighborhood_def=np.setdiff1d):
+#                                      neighborhood_def=np.setdiff1d):
+                                    neighborhood_def='dnm'):
     try:
         train_set,test_set = cPickle.load(
             open(DATA_DIR_PATH+neighborhood_def.__name__+'.pickle','rb'))
@@ -277,7 +283,7 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
             neighbors = neighborhood_def(sensor_id, sensor_IDs)
             train_set[sensor_idx,dig_time] = \
                 SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
-                             day=row.day, true_label=row.digTemp,
+                             day=row.day, true_label=row.temperature,
                              local_feature_vector=local_feature_vector,
                              is_observed=False, neighbors=neighbors)
         num_dig_time = testdays.digTime.unique().shape[0]
@@ -295,7 +301,7 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
             neighbors = neighborhood_def(sensor_id, sensor_IDs)
             test_set[sensor_idx,dig_time] = \
                 SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
-                             day=row.day, true_label=row.digTemp,
+                             day=row.day, true_label=row.temperature,
                              local_feature_vector=local_feature_vector,
                              is_observed=False, neighbors=neighbors)
         if to_be_pickled:
@@ -303,6 +309,13 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
                      open(DATA_DIR_PATH+neighborhood_def.__name__+'.pickle',
                     'wb'),protocol=cPickle.HIGHEST_PROTOCOL)
     return train_set,test_set
+
+# convert_time_window_df_randomvar(to_be_pickled=True)
+
+def zirva():
+    a = SensorRVNode(1,2,3)
+    print a.__dict__
+# zirva()
 
 #test1
 # tempdf = read_data()
