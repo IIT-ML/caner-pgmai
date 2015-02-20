@@ -13,16 +13,15 @@ from sklearn.metrics.metrics import (accuracy_score, confusion_matrix,
 import numpy as np
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.svm import SVR
+import copy
 
 class IRAModel(MLModel):
     
-    def __init__(self, local_regressor_name=constants.LineReg,
+    def __init__deprecated(self, local_regressor_name=constants.LineReg,
                  local_regressor_penalty=None,
                  relat_regressor_name=constants.LineReg,
                  relat_regressor_penalty=None,
-                 use_local_features=False,
-                 is_relat_feature_binary = False,
-                 immediate_update=False):
+                 use_local_features=False):
         if local_regressor_name == constants.LineReg:
             self.local_regressor_name = LinearRegression
         elif local_regressor_name == constants.SVR:
@@ -52,8 +51,14 @@ class IRAModel(MLModel):
         self.local_regressor = dict()
         self.relat_regressor = dict()
         self.use_local_features = use_local_features
-        self.is_relat_feature_binary = is_relat_feature_binary 
-        self.immediate_update = immediate_update
+        
+    def __init__(self, local_regressor, relat_regressor,
+                 use_local_features=False):
+        self.local_regressor_template = local_regressor
+        self.relat_regressor_template = relat_regressor
+        self.local_regressor = dict()
+        self.relat_regressor = dict()
+        self.use_local_features = use_local_features
     
     def fit(self, train_set):
         idlist = np.vectorize(lambda x: x.sensor_id)(train_set[:,0])
@@ -67,11 +72,7 @@ class IRAModel(MLModel):
             for j in range(col_count):
                 X_local_train[i,j] = train_set[i,j].local_feature_vector
                 Y_train[i,j] = train_set[i,j].true_label
-            if self.local_regressor_penalty is None:
-                self.local_regressor[i] = self.local_regressor_name()
-            else:
-                self.local_regressor[i] = self.local_regressor_name(
-                                        self.local_regressor_penalty)
+            self.local_regressor[i] = copy.deepcopy(self.local_regressor_template)
             self.local_regressor[i].fit(X_local_train[i], Y_train[i])
         self.fit_current_time(train_set, sensor_ID_dict, X_local_train,
                               Y_train)
@@ -96,11 +97,7 @@ class IRAModel(MLModel):
                     X_local_reduced = np.append(X_local_reduced,
                                                 [X_local_train[i,j]], axis=0)
                     Y_relat_train = np.append(Y_relat_train,Y_train[i,j])
-            if self.relat_regressor_penalty is None:
-                self.relat_regressor[i] = self.relat_regressor_name()
-            else:
-                self.relat_regressor[i] = self.relat_regressor_name(
-                                    self.relat_regressor_penalty)
+            self.relat_regressor[i] = copy.deepcopy(self.relat_regressor_template)
             if self.use_local_features:
                 self.relat_regressor[i].fit(np.append(X_relat_train,
                             X_local_reduced, axis=1), Y_relat_train)
@@ -271,7 +268,6 @@ class IRAModel(MLModel):
             else:
                 raise ValueError('type_ is set a non legit value, it must ' + \
                                  'be {0,1,2}')
-#         return np.mean((np.ravel(Y_true) - np.ravel(Y_pred))**2)
         return mean_squared_error(np.ravel(Y_true),np.ravel(Y_pred))
     
     def compute_confusion_matrix(self,test_set, Y_pred):

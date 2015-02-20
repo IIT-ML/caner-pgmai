@@ -3,6 +3,9 @@ Created on Jan 13, 2015
 
 @author: ckomurlu
 '''
+
+import numpy as np
+
 class RandomVarNode(object):
     def __init__(self, true_label=None, local_feature_vector=None,
                  is_observed=False, neighbors=None):
@@ -21,3 +24,36 @@ class SensorRVNode(RandomVarNode):
         self.dig_time = dig_time
         self.day = day
         
+
+#neighborhood function list
+class Neighborhood:
+    @staticmethod
+    def independent_back(self_id, sensor_IDs):
+        neighbors = [(self_id,-1)]
+        return neighbors
+    
+    @staticmethod
+    def all_nodes_current_time(self_id, sensor_IDs):
+        neighbors = []
+        neighbors += zip(sensor_IDs,[0]*len(sensor_IDs))
+        return neighbors
+    
+    @staticmethod
+    def all_others_current_time(self_id, sensor_IDs):
+        neighbors = []
+        neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
+                        (len(sensor_IDs)-1))
+        return neighbors
+    
+    @staticmethod
+    def itself_previous_others_current(self_id, sensor_IDs):
+        neighbors = [(self_id,-1)]
+        neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
+                        (len(sensor_IDs)-1))
+        return neighbors
+    
+    @staticmethod
+    def itself_current_only(self_id, sensor_IDs):
+        neighbors = [(self_id,0)]
+        return neighbors
+

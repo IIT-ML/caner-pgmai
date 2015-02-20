@@ -7,12 +7,15 @@ Created on Feb 4, 2015
 
 import numpy as np
 from time import time
-from sklearn.linear_model import LassoLars
+from sklearn.linear_model import Lasso,LinearRegression
+import copy
 
 from joint.iterative_classifier import ICAModel
 from utils.node import RandomVarNode
-from main import all_others_current_time
+from utils.node import Neighborhood
 from utils.readdata import convert_time_window_df_randomvar
+
+from sklearn.preprocessing import PolynomialFeatures
 
 
 def main():
@@ -36,7 +39,7 @@ def main():
 
 def regression_main():
     begin = time()
-    neighborhood_def = all_others_current_time
+    neighborhood_def = Neighborhood.all_others_current_time
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     row_count,col_count = train_set.shape
@@ -49,12 +52,14 @@ def regression_main():
     xtrain = xtrain.reshape(-1,4)
     ytrain = ytrain.reshape(-1,1)
     
-#     regr = LinearRegression()
-#     regr = SVR(kernel='linear')
-    regr = LassoLars(alpha=.1)
-
-    regr.fit(xtrain, ytrain)
     
+    regr = LinearRegression()
+#     regr = SVR(kernel='linear')
+    
+    poly = PolynomialFeatures(degree=3)
+    xtrain2 = poly.fit_transform(xtrain)
+
+    regr.fit(xtrain2, ytrain)
     
     row_count,col_count = test_set.shape
     xtest = np.empty(shape=(row_count,col_count,4),dtype=np.bool_)
@@ -66,9 +71,11 @@ def regression_main():
     xtest = xtrain.reshape(-1,4)
     ytest = ytrain.reshape(-1,1)
     
-    print np.mean((regr.predict(xtest)-ytest)**2)
+    xtest2 = poly.fit_transform(xtest)
+    
+    print np.mean((regr.predict(xtest2)-ytest)**2)
     print regr.coef_,regr.intercept_
     
-    print 'end of regression'
+    print 'end of regression - duration: ', time() - begin
     
-main()
+regression_main()

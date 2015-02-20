@@ -8,34 +8,57 @@ from utils.readdata import convert_time_window_df_randomvar
 from joint.iterative_classifier import ICAModel
 from joint.iterative_regressor import IRAModel
 from ai.selection_strategy import RandomStrategy,UNCSampling
+from utils.node import Neighborhood
 
 import numpy as np
 import cPickle
 from time import time
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.svm import SVR
 
 def main_IRA():
     begin = time()
-    neighborhood_def = all_others_current_time
+    neighborhood_def = Neighborhood.all_others_current_time
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
-    local_regressor_name = 'lasso'
-    relat_regressor_name = 'lasso'
-    print 'use local feature\t', 'Yes' if use_local_features else 'No'
-    print 'local regression algorithm: ',local_regressor_name
-    print 'relational regression algorithm: ',relat_regressor_name
-    iraModel = IRAModel(local_regressor_name=local_regressor_name,
-                        relat_regressor_name=relat_regressor_name,
-                        use_local_features=use_local_features)
-    iraModel.fit(train_set)
-    Y_pred = iraModel.predict_by_local_regressors(train_set)
-    print iraModel.compute_accuracy(train_set, Y_pred, type_=0)
-    Y_pred = iraModel.predict_by_local_regressors(test_set)
-    print iraModel.compute_accuracy(test_set, Y_pred, type_=0)
+#     local_regressor_name = 'lasso'
+#     relat_regressor_name = 'lasso'
+#     print 'use local feature\t', 'Yes' if use_local_features else 'No'
+#     print 'local regression algorithm: ',local_regressor_name
+#     print 'relational regression algorithm: ',relat_regressor_name
+#      = ['lineReg','lasso','ridge','svr']
+    regressor_list = list()
+    
+#     reg = LinearRegression()
+#     tag = 'Linear Regression'
+#     regressor_list.append((tag,reg))
+    for kern in ['poly']:
+        for C in [10**pwr for pwr in range(0,5)]:
+            reg = SVR(kernel=kern,C=C)
+            tag = 'SVR kernel=' + kern + ' C=' + str(C)
+            regressor_list.append((tag,reg))
+
+#     reg = Lasso() 
+#     regressor_dict.append((tag,reg))
+#     reg = SVR()
+#     regressor_dict.append(reg)
+     
+    for tag,regressor in regressor_list:
+        print tag,'\t',
+        iraModel = IRAModel(local_regressor=regressor,
+                            relat_regressor=regressor,
+                            use_local_features=use_local_features)
+        iraModel.fit(train_set)
+        Y_pred = iraModel.predict_by_local_regressors(train_set)
+        print iraModel.compute_accuracy(train_set, Y_pred, type_=0),'\t',
+        Y_pred = iraModel.predict_by_local_regressors(test_set)
+        print iraModel.compute_accuracy(test_set, Y_pred, type_=0)
+    print
 
 def main_classify():
     begin = time()
-    neighborhood_def = all_others_current_time
+    neighborhood_def = Neighborhood.all_others_current_time
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
@@ -119,32 +142,6 @@ def active_inf_loop(local_classifier_name,
         results[current_trial,rate_idx,2] = icaModel.compute_accuracy(
                         test_set, Y_pred, type_=2,evidence_mat=evidence_mat)
 
-#neighborhood function list
-def independent_back(self_id, sensor_IDs):
-    neighbors = [(self_id,-1)]
-    return neighbors
-
-def all_nodes_current_time(self_id, sensor_IDs):
-    neighbors = []
-    neighbors += zip(sensor_IDs,[0]*len(sensor_IDs))
-    return neighbors
-
-def all_others_current_time(self_id, sensor_IDs):
-    neighbors = []
-    neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
-                    (len(sensor_IDs)-1))
-    return neighbors
-
-def itself_previous_others_current(self_id, sensor_IDs):
-    neighbors = [(self_id,-1)]
-    neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
-                    (len(sensor_IDs)-1))
-    return neighbors
-
-def itself_current_only(self_id, sensor_IDs):
-    neighbors = [(self_id,0)]
-    return neighbors
-
 def apply_func_to_coords(coord_list, shape, func=None):
     row_count, col_count = shape
     marked_mat = np.zeros(shape=(row_count,col_count),dtype=np.bool8)
@@ -155,6 +152,7 @@ def apply_func_to_coords(coord_list, shape, func=None):
         for coord in coord_list:
             marked_mat[coord[0],coord[1]] = func(marked_mat[coord[0],coord[1]])
     return marked_mat
+
 
 main_IRA()
 
