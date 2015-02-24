@@ -4,7 +4,7 @@ Created on Jan 14, 2015
 @author: ckomurlu
 '''
 
-from ml_model import MLModel
+from models.ml_model import MLModel
 from utils.decorations import deprecated,cheating
 from utils import constants
 

@@ -15,10 +15,12 @@ import cPickle
 from time import time
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.svm import SVR
+from sklearn.preprocessing import PolynomialFeatures
+from models.LinearRegressionExt import LinearRegressionExt
 
 def main_IRA():
     begin = time()
-    neighborhood_def = Neighborhood.all_others_current_time
+    neighborhood_def = Neighborhood.itself_previous_others_current
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
@@ -29,19 +31,19 @@ def main_IRA():
 #     print 'relational regression algorithm: ',relat_regressor_name
 #      = ['lineReg','lasso','ridge','svr']
     regressor_list = list()
-    
-#     reg = LinearRegression()
-#     tag = 'Linear Regression'
-#     regressor_list.append((tag,reg))
+    degree = 2
+    reg = LinearRegressionExt(degree=degree)
+    tag = 'Linear Regression'
+    regressor_list.append((tag,reg))
 
-    for kern in ['poly']:
-        for C in [10**pwr for pwr in range(-2,5)]:
-            reg = SVR(kernel=kern,C=C,degree=1)
-            tag = 'SVR kernel=' + kern + ' C=' + str(C)
-            regressor_list.append((tag,reg))
+#     for kern in ['poly']:
+#         for C in [10**pwr for pwr in range(-2,5)]:
+#             reg = SVR(kernel=kern,C=C,degree=1)
+#             tag = 'SVR kernel=' + kern + ' C=' + str(C)
+#             regressor_list.append((tag,reg))
 
-#     for alpha in [10**pwr for pwr in range(-2,5)]:
-#         reg = Lasso(alpha=alpha)
+#     for alpha in [10**pwr for pwr in range(-1,0)]:
+#         reg = Lasso(alpha=alpha,max_iter=100000)
 #         tag = 'Lasso alpha=' + str(alpha)
 #         regressor_list.append((tag,reg))
 
@@ -50,16 +52,16 @@ def main_IRA():
 #         tag = 'Ridge alpha=' + str(alpha)
 #         regressor_list.append((tag,reg))
 
-     
+    maxiter = 10
     for tag,regressor in regressor_list:
         print tag,'\t',
         iraModel = IRAModel(local_regressor=regressor,
                             relat_regressor=regressor,
                             use_local_features=use_local_features)
         iraModel.fit(train_set)
-        Y_pred = iraModel.predict_with_neighbors_true_labels(train_set)
+        Y_pred = iraModel.predict(train_set,maxiter=maxiter)
         print iraModel.compute_accuracy(train_set, Y_pred, type_=0),'\t',
-        Y_pred = iraModel.predict_with_neighbors_true_labels(test_set)
+        Y_pred = iraModel.predict(test_set,maxiter=maxiter)
         print iraModel.compute_accuracy(test_set, Y_pred, type_=0)
     print
 

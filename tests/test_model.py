@@ -8,7 +8,7 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 from sklearn.metrics.metrics import accuracy_score, confusion_matrix
 
-from ml_model import MLModel
+from models.ml_model import MLModel
 
 class TestModel(MLModel):
     
