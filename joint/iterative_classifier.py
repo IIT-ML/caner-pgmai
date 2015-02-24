@@ -22,7 +22,7 @@ class ICAModel(MLModel):
                  immediate_update=False):
         if local_classifier_name == constants.LR:
             self.local_classifier_name = LogisticRegression
-        elif local_classifier_name == constants.SVM:
+        elif local_classifier_name == constants.SVC:
             self.local_classifier_name = SVC
         else:
             raise ValueError('Wrong classifier name is provided for the '+
@@ -31,7 +31,7 @@ class ICAModel(MLModel):
         self.local_classifier_C = local_classifier_C
         if relat_classifier_name == constants.LR:
             self.relat_classifier_name = LogisticRegression
-        elif relat_classifier_name == constants.SVM:
+        elif relat_classifier_name == constants.SVC:
             self.relat_classifier_name = SVC
         else:
             raise ValueError('Wrong classifier name is provided for the '+

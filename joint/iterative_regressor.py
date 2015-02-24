@@ -116,7 +116,7 @@ class IRAModel(MLModel):
             neighbor_time = node_j + neighbor_time_offset
             if neighbor_time < 0:
                 relat_feature_vector = np.ones((relat_feature_vector_len,),
-                                               dtype=np.float_) * constants.INF
+                                        dtype=np.float_) * constants.FLOAT_INF
                 break
             if Y_pred is None:
                 relat_feature_vector[k] = data_set[
@@ -268,7 +268,9 @@ class IRAModel(MLModel):
             else:
                 raise ValueError('type_ is set a non legit value, it must ' + \
                                  'be {0,1,2}')
-        return mean_squared_error(np.ravel(Y_true),np.ravel(Y_pred))
+        legit_indices = np.where(Y_pred != constants.FLOAT_INF)
+        return mean_squared_error(np.ravel(Y_true[legit_indices]),
+                                  np.ravel(Y_pred[legit_indices]))
     
     def compute_confusion_matrix(self,test_set, Y_pred):
         raise NotImplemented('Probability prediction is not implemented.')
