@@ -253,10 +253,12 @@ class IRAModel(MLModel):
                 'There\'s bug in the flow'
             if type_ == 1:
                 if np.sum(evidence_mat) == np.prod(evidence_mat.shape):
-                    return float('nan')
-                Y_true = np.vectorize(lambda x: x.true_label)(test_set[
-                                                    np.invert(evidence_mat)])
-                Y_pred = Y_pred[np.invert(evidence_mat)]
+                    Y_true = np.array([])
+                    Y_pred = np.array([])
+                else:
+                    Y_true = np.vectorize(lambda x: x.true_label)(test_set[
+                                                        np.invert(evidence_mat)])
+                    Y_pred = Y_pred[np.invert(evidence_mat)]
             elif type_ == 2:
                 Y_true = np.vectorize(lambda x: x.true_label)(test_set)
                 Y_pred[evidence_mat] = Y_true[evidence_mat]

@@ -17,6 +17,7 @@ from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.svm import SVR
 from sklearn.preprocessing import PolynomialFeatures
 from models.LinearRegressionExt import LinearRegressionExt
+from sklearn.externals.joblib.parallel import Parallel
 
 def main_IRA():
     begin = time()
@@ -64,7 +65,97 @@ def main_IRA():
         Y_pred = iraModel.predict_with_neighbors_true_labels(test_set)
         print iraModel.compute_mean_absolute_error(test_set, Y_pred, type_=0)
     print
+    
+def main_regression():
+    begin = time()
+    neighborhood_def = Neighborhood.itself_previous_others_current
+    train_set,test_set = convert_time_window_df_randomvar(True,
+                                                          neighborhood_def)
+    use_local_features=True
+    local_regressor_name = 'lasso'
+    relat_regressor_name = 'lasso'
+    C = 10
+    print 'use local feature\t', 'Yes' if use_local_features else 'No'
+    print 'local regression algorithm: ',local_regressor_name
+    print 'relational regression algorithm: ',relat_regressor_name
+    random_strategy = RandomStrategy()
+#     unc_sampling = UNCSampling()
+    pool = [(i,j) for i in range(test_set.shape[0])
+            for j in range(test_set.shape[1])]
+    iter_count = 10
+    num_trials = 10
+    rate_range = np.arange(0,1.1,0.1)
+    results = np.empty(shape=(num_trials,rate_range.shape[0],6))
+    degree = 1
+    reg = LinearRegressionExt(degree=degree)
+    for current_trial in range(num_trials):
+        print '\ttrial:',current_trial
+        active_inf_loop_4_regression(reg,
+                    reg,
+                    use_local_features,
+                    train_set,
+                    test_set, pool,
+                    results,
+                    random_strategy,
+                    rate_range,
+                    iter_count,
+                    current_trial)
+    print results
+    cPickle.dump(results,open(
+        'regressionDataDays2_3_4-5_6/resultsUNCSampling_maxProb.pickle','wb'))
+    print 'Duration: ',time() - begin
+    print 'Process ended'
+    
+def active_inf_loop_4_regression(local_regressor,
+                    relat_regressor,
+                    use_local_features,
+                    train_set,
+                    test_set, pool,
+                    results,
+                    selection_strategy,
+                    rate_range,
+                    iter_count,
+                    current_trial):
+    selectees = []
+    initial_pool_size = len(pool)
+    iraModel = IRAModel(local_regressor=local_regressor,
+                        relat_regressor=relat_regressor,
+                        use_local_features=use_local_features)    
+    iraModel.fit(train_set)
+    for rate_idx in range(rate_range.shape[0]):
+        if rate_idx == 0:
+            rate_increment = 0
+        else:
+            rate_increment = int(round(initial_pool_size*
+                            (rate_range[rate_idx] - rate_range[rate_idx-1])))
+        print rate_idx, rate_increment
+        current_selectees,pool = selection_strategy.choices(#iraModel, test_set,
+                                                pool, rate_increment)
+        selectees += current_selectees
+        evidence_mat = apply_func_to_coords(selectees, test_set.shape)
+#         Y_pred = icaModel.predict_by_local_classifiers(test_set)
+        Y_pred = iraModel.predict(test_set, maxiter=iter_count,
+                                        evidence_mat=evidence_mat)
+        results[current_trial,rate_idx,0] = iraModel.\
+                        compute_mean_squared_error(test_set, Y_pred, type_=0,
+                                                   evidence_mat=evidence_mat)
+        results[current_trial,rate_idx,1] = iraModel.\
+                        compute_mean_squared_error(test_set, Y_pred, type_=1,
+                                                   evidence_mat=evidence_mat)
+        results[current_trial,rate_idx,2] = iraModel.\
+                        compute_mean_squared_error(test_set, Y_pred, type_=2,
+                                                   evidence_mat=evidence_mat)
+        results[current_trial,rate_idx,3] = iraModel.\
+                        compute_mean_absolute_error(test_set, Y_pred, type_=0,
+                                                   evidence_mat=evidence_mat)
+        results[current_trial,rate_idx,4] = iraModel.\
+                        compute_mean_absolute_error(test_set, Y_pred, type_=1,
+                                                   evidence_mat=evidence_mat)
+        results[current_trial,rate_idx,5] = iraModel.\
+                        compute_mean_absolute_error(test_set, Y_pred, type_=2,
+                                                   evidence_mat=evidence_mat)
 
+    
 def main_classify():
     begin = time()
     neighborhood_def = Neighborhood.all_others_current_time
@@ -163,7 +254,8 @@ def apply_func_to_coords(coord_list, shape, func=None):
     return marked_mat
 
 
-main_IRA()
+# main_IRA()
+main_regression()
 
 #Old code:
 #                 Y_pred = icaModel.predict(train_set, maxiter=10)
