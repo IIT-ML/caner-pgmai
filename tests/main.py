@@ -16,6 +16,7 @@ from utils.node import Neighborhood
 from utils.readdata import convert_time_window_df_randomvar
 
 from sklearn.preprocessing import PolynomialFeatures
+from independent.local_mean_regressor import LocalMeanRegressor
 
 
 def main():
@@ -78,4 +79,15 @@ def regression_main():
     
     print 'end of regression - duration: ', time() - begin
     
-regression_main()
+def test_local_mean_fit():
+    neighborhood_def = Neighborhood.itself_previous_others_current
+    train_set,test_set = convert_time_window_df_randomvar(True,
+                                                          neighborhood_def)
+    lmreg = LocalMeanRegressor()
+    lmreg.fit(train_set)
+    Y_pred = lmreg.predict(train_set)
+    print lmreg.compute_accuracy(train_set, Y_pred)
+    Y_pred = lmreg.predict(test_set)
+    print lmreg.compute_accuracy(test_set, Y_pred)
+    
+test_local_mean_fit()

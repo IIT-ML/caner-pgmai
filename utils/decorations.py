@@ -20,7 +20,7 @@ def deprecated(func):
 
 def cheating(func):
     def newFunc(*args, **kwargs):
-        warnings.warn("This method %s is not legit." % func.__name__)
+        warnings.warn("This method %s is not legit." % func.__name__,stacklevel=1)
         return func(*args, **kwargs)
     newFunc.__name__ = func.__name__
     newFunc.__doc__ = func.__doc__

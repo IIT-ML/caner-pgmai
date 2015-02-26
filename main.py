@@ -32,21 +32,21 @@ def main_IRA():
 #      = ['lineReg','lasso','ridge','svr']
     regressor_list = list()
 
-#     degree = 2
+#     degree = 1
 #     reg = LinearRegressionExt(degree=degree)
 #     tag = 'Linear Regression'
 #     regressor_list.append((tag,reg))
 
-#     for kern in ['poly']:
-#         for C in [10**pwr for pwr in range(-2,5)]:
-#             reg = SVR(kernel=kern,C=C,degree=1)
-#             tag = 'SVR kernel=' + kern + ' C=' + str(C)
-#             regressor_list.append((tag,reg))
+    for kern in ['linear']:
+        for C in [10**pwr for pwr in range(-2,5)]:
+            reg = SVR(kernel=kern,C=C)
+            tag = 'SVR kernel=' + kern + ' C=' + str(C)
+            regressor_list.append((tag,reg))
 
-    for alpha in [10**pwr for pwr in range(-7,5)]:
-        reg = Lasso(alpha=alpha)
-        tag = 'Lasso alpha=' + str(alpha)
-        regressor_list.append((tag,reg))
+#     for alpha in [10**pwr for pwr in range(-7,5)]:
+#         reg = Lasso(alpha=alpha)
+#         tag = 'Lasso alpha=' + str(alpha)
+#         regressor_list.append((tag,reg))
 
 #     for alpha in [10**pwr for pwr in range(-2,5)]:
 #         reg = Ridge(alpha=alpha)
@@ -60,9 +60,9 @@ def main_IRA():
                             use_local_features=use_local_features)
         iraModel.fit(train_set)
         Y_pred = iraModel.predict_with_neighbors_true_labels(train_set)
-        print iraModel.compute_accuracy(train_set, Y_pred, type_=0),'\t',
+        print iraModel.compute_mean_absolute_error(train_set, Y_pred, type_=0),'\t',
         Y_pred = iraModel.predict_with_neighbors_true_labels(test_set)
-        print iraModel.compute_accuracy(test_set, Y_pred, type_=0)
+        print iraModel.compute_mean_absolute_error(test_set, Y_pred, type_=0)
     print
 
 def main_classify():

@@ -9,7 +9,7 @@ from utils.decorations import deprecated,cheating
 from utils import constants
 
 from sklearn.metrics.metrics import (accuracy_score, confusion_matrix,
-                                    mean_squared_error)
+                                    mean_squared_error,mean_absolute_error)
 import numpy as np
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.svm import SVR
@@ -212,7 +212,7 @@ class IRAModel(MLModel):
                         print ValueError
         return Y_prob
     
-    @cheating
+#     @cheating
     def predict_with_neighbors_true_labels(self,test_set):
         idlist = np.vectorize(lambda x: x.sensor_id)(test_set[:,0])
         sensor_ID_dict = dict(zip(idlist,np.arange(len(idlist))))
@@ -240,13 +240,8 @@ class IRAModel(MLModel):
             neighbor_indices[k] = sensor_ID_dict[node.neighbors[k]]
         return neighbor_indices
 
-    def compute_accuracy(self,test_set,Y_pred, type_=0, evidence_mat=None):
-        # type_ 0 is the accuracy in which we include everyone with their
-        #     predicted labels
-        # type_ 1 is the accuracy in which we include only the non evidence
-        #     instances
-        # type_ 2 is the one we include again everyone but evidence instances
-        #     participate with true labels.
+    def __prepare_prediction_for_evaluation(self,test_set,Y_pred, type_=0,
+                                            evidence_mat=None):
         assert test_set.shape == Y_pred.shape,'Test set and predicted label'+\
                ' matrix shape don\'t match'
 #         Y_true = [node.true_label for row in test_set for node in row]
@@ -269,12 +264,37 @@ class IRAModel(MLModel):
                 raise ValueError('type_ is set a non legit value, it must ' + \
                                  'be {0,1,2}')
         legit_indices = np.where(Y_pred != constants.FLOAT_INF)
-        return mean_squared_error(np.ravel(Y_true[legit_indices]),
+        return Y_true,Y_pred,legit_indices
+        
+
+    def compute_mean_absolute_error(self,test_set,Y_pred, type_=0, evidence_mat=None):
+        # type_ 0 is the accuracy in which we include everyone with their
+        #     predicted labels
+        # type_ 1 is the accuracy in which we include only the non evidence
+        #     instances
+        # type_ 2 is the one we include again everyone but evidence instances
+        #     participate with true labels.
+        Y_true,Y_pred,legit_indices = self.__prepare_prediction_for_evaluation(
+                    test_set,Y_pred, type_=type_, evidence_mat=evidence_mat)
+        return mean_absolute_error(np.ravel(Y_true[legit_indices]),
                                   np.ravel(Y_pred[legit_indices]))
     
+    def compute_mean_squared_error(self,test_set,Y_pred, type_=0, evidence_mat=None):
+        # type_ 0 is the accuracy in which we include everyone with their
+        #     predicted labels
+        # type_ 1 is the accuracy in which we include only the non evidence
+        #     instances
+        # type_ 2 is the one we include again everyone but evidence instances
+        #     participate with true labels.
+        Y_true,Y_pred,legit_indices = self.__prepare_prediction_for_evaluation(
+                    test_set,Y_pred, type_=type_, evidence_mat=evidence_mat)
+        return mean_squared_error(np.ravel(Y_true[legit_indices]),
+                                  np.ravel(Y_pred[legit_indices]))
+
+    def compute_accuracy(self, test_set, Y_pred):
+        raise NotImplemented('In regression, accuracy cannot be computed.' +
+                             ' Use MSE or MAE instead.')
+    
     def compute_confusion_matrix(self,test_set, Y_pred):
-        raise NotImplemented('Probability prediction is not implemented.')
-        assert test_set.shape == Y_pred.shape,'Test set and predicted label'+\
-               ' matrix shape don\'t match'
-        Y_true = [node.true_label for row in test_set for node in row]
-        return confusion_matrix(Y_true, np.ravel(Y_pred))
+        raise NotImplemented('Confusion matrix is not applicable in regression'
+                              + ', you may possibly use covariance matrix.')
