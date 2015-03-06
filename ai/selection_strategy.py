@@ -7,7 +7,7 @@ Created on Jan 8, 2015
 import numpy as np
 
 class RandomStrategy(object):
-    def __init__(self, seed=0):
+    def __init__(self, seed=1):
         self.rgen = np.random.RandomState(seed)
     
     def choices(self, pool, k):

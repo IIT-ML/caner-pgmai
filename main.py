@@ -9,6 +9,7 @@ from joint.iterative_classifier import ICAModel
 from joint.iterative_regressor import IRAModel
 from ai.selection_strategy import RandomStrategy,UNCSampling
 from utils.node import Neighborhood
+from independent.local_mean_regressor import LocalMeanRegressor
 
 import numpy as np
 import cPickle
@@ -33,16 +34,16 @@ def main_IRA():
 #      = ['lineReg','lasso','ridge','svr']
     regressor_list = list()
 
-#     degree = 1
-#     reg = LinearRegressionExt(degree=degree)
-#     tag = 'Linear Regression'
-#     regressor_list.append((tag,reg))
+    degree = 1
+    reg = LinearRegressionExt(degree=degree)
+    tag = 'Linear Regression'
+    regressor_list.append((tag,reg))
 
-    for kern in ['linear']:
-        for C in [10**pwr for pwr in range(-2,5)]:
-            reg = SVR(kernel=kern,C=C)
-            tag = 'SVR kernel=' + kern + ' C=' + str(C)
-            regressor_list.append((tag,reg))
+#     for kern in ['linear']:
+#         for C in [10**pwr for pwr in range(-2,5)]:
+#             reg = SVR(kernel=kern,C=C)
+#             tag = 'SVR kernel=' + kern + ' C=' + str(C)
+#             regressor_list.append((tag,reg))
 
 #     for alpha in [10**pwr for pwr in range(-7,5)]:
 #         reg = Lasso(alpha=alpha)
@@ -60,12 +61,12 @@ def main_IRA():
                             relat_regressor=regressor,
                             use_local_features=use_local_features)
         iraModel.fit(train_set)
-        Y_pred = iraModel.predict_with_neighbors_true_labels(train_set)
-        print iraModel.compute_mean_absolute_error(train_set, Y_pred, type_=0),'\t',
+#         Y_pred = iraModel.predict_with_neighbors_true_labels(train_set)
+#         print iraModel.compute_mean_absolute_error(train_set, Y_pred, type_=0),'\t',
         Y_pred = iraModel.predict_with_neighbors_true_labels(test_set)
         print iraModel.compute_mean_absolute_error(test_set, Y_pred, type_=0)
     print
-    
+
 def main_regression():
     begin = time()
     neighborhood_def = Neighborhood.itself_previous_others_current
@@ -74,7 +75,6 @@ def main_regression():
     use_local_features=True
     local_regressor_name = 'lasso'
     relat_regressor_name = 'lasso'
-    C = 10
     print 'use local feature\t', 'Yes' if use_local_features else 'No'
     print 'local regression algorithm: ',local_regressor_name
     print 'relational regression algorithm: ',relat_regressor_name
@@ -85,14 +85,21 @@ def main_regression():
     iter_count = 10
     num_trials = 10
     rate_range = np.arange(0,1.1,0.1)
+#     rate_range = np.array([1])
     results = np.empty(shape=(num_trials,rate_range.shape[0],6))
-    degree = 1
-    reg = LinearRegressionExt(degree=degree)
+    alpha = 1.0
+    local_reg = Lasso(alpha=alpha)
+    relat_reg = Lasso(alpha=alpha)
+#     reg = LocalMeanRegressor()
+
+    iraModel = IRAModel(local_regressor=local_reg,
+                        relat_regressor=relat_reg,
+                        use_local_features=use_local_features)
+    iraModel.fit(train_set)
+
     for current_trial in range(num_trials):
         print '\ttrial:',current_trial
-        active_inf_loop_4_regression(reg,
-                    reg,
-                    use_local_features,
+        active_inf_loop_4_regression(iraModel,
                     train_set,
                     test_set, pool,
                     results,
@@ -102,13 +109,22 @@ def main_regression():
                     current_trial)
     print results
     cPickle.dump(results,open(
-        'regressionDataDays2_3_4-5_6/resultsUNCSampling_maxProb.pickle','wb'))
+        'regressionDataDays2_3_4-5_6/resultsRandom_lasso1.0_iter10.pickle','wb'))
     print 'Duration: ',time() - begin
     print 'Process ended'
-    
-def active_inf_loop_4_regression(local_regressor,
-                    relat_regressor,
-                    use_local_features,
+
+# def active_inf_loop_4_regression(local_regressor,
+#                     relat_regressor,
+#                     use_local_features,
+#                     train_set,
+#                     test_set, pool,
+#                     results,
+#                     selection_strategy,
+#                     rate_range,
+#                     iter_count,
+#                     current_trial):
+
+def active_inf_loop_4_regression(iraModel,
                     train_set,
                     test_set, pool,
                     results,
@@ -118,13 +134,9 @@ def active_inf_loop_4_regression(local_regressor,
                     current_trial):
     selectees = []
     initial_pool_size = len(pool)
-    iraModel = IRAModel(local_regressor=local_regressor,
-                        relat_regressor=relat_regressor,
-                        use_local_features=use_local_features)    
-    iraModel.fit(train_set)
-    for rate_idx in range(rate_range.shape[0]):
+    for rate_idx in range(0,rate_range.shape[0]):
         if rate_idx == 0:
-            rate_increment = 0
+            rate_increment = int(round(initial_pool_size*rate_range[rate_idx]))
         else:
             rate_increment = int(round(initial_pool_size*
                             (rate_range[rate_idx] - rate_range[rate_idx-1])))
@@ -155,7 +167,6 @@ def active_inf_loop_4_regression(local_regressor,
                         compute_mean_absolute_error(test_set, Y_pred, type_=2,
                                                    evidence_mat=evidence_mat)
 
-    
 def main_classify():
     begin = time()
     neighborhood_def = Neighborhood.all_others_current_time
@@ -253,9 +264,9 @@ def apply_func_to_coords(coord_list, shape, func=None):
             marked_mat[coord[0],coord[1]] = func(marked_mat[coord[0],coord[1]])
     return marked_mat
 
-
 # main_IRA()
 main_regression()
+
 
 #Old code:
 #                 Y_pred = icaModel.predict(train_set, maxiter=10)

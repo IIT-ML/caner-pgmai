@@ -130,6 +130,7 @@ class IRAModel(MLModel):
                         node_ID_dict[neighbor_id],neighbor_time].\
                         true_label
                 else:
+#                     print 'that is not supposed to happen'
                     relat_feature_vector[k] = Y_pred[
                         node_ID_dict[neighbor_id],neighbor_time]
                 
@@ -165,13 +166,21 @@ class IRAModel(MLModel):
                     current_feature_vector = self.generate_relat_feature_vector(
                                                 test_set, i, j, sensor_ID_dict,
                                                 Y_pred, evidence_mat)
-                    if current_feature_vector[0] != constants.FLOAT_INF:
+#                     current_feature_vector = self.generate_relat_feature_vector(
+#                                                 test_set, i, j, sensor_ID_dict)
+                    if current_feature_vector[0] == constants.FLOAT_INF:
+#                         Y_pred_temp[i,j] = constants.FLOAT_INF
+                        Y_pred_temp[i,j] = Y_pred[i,j]  
+                    else:
                         if self.use_local_features:
                             current_feature_vector = np.append(
                                 current_feature_vector,test_set[i,j].\
                                 local_feature_vector)
-                        Y_pred_temp[i,j] = self.relat_regressor[i].predict(
-                            current_feature_vector)
+                        try:
+                            Y_pred_temp[i,j] = self.relat_regressor[i].predict(
+                                current_feature_vector)
+                        except ValueError:
+                            pass
             Y_pred = Y_pred_temp.copy()
         return Y_pred
     
@@ -276,10 +285,12 @@ class IRAModel(MLModel):
         #     instances
         # type_ 2 is the one we include again everyone but evidence instances
         #     participate with true labels.
-        Y_true,Y_pred,legit_indices = self.__prepare_prediction_for_evaluation(
-                    test_set,Y_pred, type_=type_, evidence_mat=evidence_mat)
+        Y_pred_local = copy.deepcopy(Y_pred)
+        Y_true,Y_pred_local,legit_indices = self.__prepare_prediction_for_evaluation(
+                    test_set,Y_pred_local, type_=type_,
+                    evidence_mat=evidence_mat)
         return mean_absolute_error(np.ravel(Y_true[legit_indices]),
-                                  np.ravel(Y_pred[legit_indices]))
+                                  np.ravel(Y_pred_local[legit_indices]))
     
     def compute_mean_squared_error(self,test_set,Y_pred, type_=0, evidence_mat=None):
         # type_ 0 is the accuracy in which we include everyone with their
@@ -288,10 +299,12 @@ class IRAModel(MLModel):
         #     instances
         # type_ 2 is the one we include again everyone but evidence instances
         #     participate with true labels.
-        Y_true,Y_pred,legit_indices = self.__prepare_prediction_for_evaluation(
-                    test_set,Y_pred, type_=type_, evidence_mat=evidence_mat)
+        Y_pred_local = copy.deepcopy(Y_pred)
+        Y_true,Y_pred_local,legit_indices = self.__prepare_prediction_for_evaluation(
+                    test_set,Y_pred_local, type_=type_,
+                    evidence_mat=evidence_mat)
         return mean_squared_error(np.ravel(Y_true[legit_indices]),
-                                  np.ravel(Y_pred[legit_indices]))
+                                  np.ravel(Y_pred_local[legit_indices]))
 
     def compute_accuracy(self, test_set, Y_pred):
         raise NotImplemented('In regression, accuracy cannot be computed.' +
