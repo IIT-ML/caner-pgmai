@@ -69,7 +69,7 @@ def main_IRA():
 
 def main_regression():
     begin = time()
-    neighborhood_def = Neighborhood.itself_previous_others_current
+    neighborhood_def = Neighborhood.itself_previous_following_others_current
     train_set,test_set = convert_time_window_df_randomvar(True,
                                                           neighborhood_def)
     use_local_features=True
@@ -82,8 +82,8 @@ def main_regression():
 #     unc_sampling = UNCSampling()
     pool = [(i,j) for i in range(test_set.shape[0])
             for j in range(test_set.shape[1])]
-    iter_count = 10
-    num_trials = 10
+    iter_count = 3
+    num_trials = 1
     rate_range = np.arange(0,1.1,0.1)
 #     rate_range = np.array([1])
     results = np.empty(shape=(num_trials,rate_range.shape[0],6))
@@ -109,7 +109,7 @@ def main_regression():
                     current_trial)
     print results
     cPickle.dump(results,open(
-        'regressionDataDays2_3_4-5_6/resultsRandom_lasso1.0_iter10.pickle','wb'))
+        'regressionDataDays2_3_4-5_6/resultsRandom_lasso1.0_debug.pickle','wb'))
     print 'Duration: ',time() - begin
     print 'Process ended'
 

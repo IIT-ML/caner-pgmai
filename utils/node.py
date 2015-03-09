@@ -57,3 +57,10 @@ class Neighborhood:
         neighbors = [(self_id,0)]
         return neighbors
 
+    @staticmethod
+    def itself_previous_following_others_current(self_id, sensor_IDs):
+        neighbors = [(self_id,-1)]
+        neighbors.append((self_id,1))
+        neighbors += zip(np.setdiff1d(sensor_IDs, [self_id]),[0]*
+                        (len(sensor_IDs)-1))
+        return neighbors

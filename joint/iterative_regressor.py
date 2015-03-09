@@ -114,7 +114,7 @@ class IRAModel(MLModel):
         for k in range(relat_feature_vector_len):
             neighbor_id,neighbor_time_offset = current_node.neighbors[k]
             neighbor_time = node_j + neighbor_time_offset
-            if neighbor_time < 0:
+            if neighbor_time < 0 or neighbor_time >= data_set.shape[1]:
                 relat_feature_vector = np.ones((relat_feature_vector_len,),
                                         dtype=np.float_) * constants.FLOAT_INF
                 break
@@ -161,6 +161,7 @@ class IRAModel(MLModel):
         Y_pred_temp = np.empty(shape=test_set.shape,dtype = np.float_)
         row_count,col_count = test_set.shape
         for _ in range(maxiter):
+            count = 0
             for i in range(row_count):
                 for j in range(col_count):
                     current_feature_vector = self.generate_relat_feature_vector(
@@ -172,15 +173,13 @@ class IRAModel(MLModel):
 #                         Y_pred_temp[i,j] = constants.FLOAT_INF
                         Y_pred_temp[i,j] = Y_pred[i,j]  
                     else:
+                        count += 1
                         if self.use_local_features:
                             current_feature_vector = np.append(
                                 current_feature_vector,test_set[i,j].\
                                 local_feature_vector)
-                        try:
-                            Y_pred_temp[i,j] = self.relat_regressor[i].predict(
+                        Y_pred_temp[i,j] = self.relat_regressor[i].predict(
                                 current_feature_vector)
-                        except ValueError:
-                            pass
             Y_pred = Y_pred_temp.copy()
         return Y_pred
     
