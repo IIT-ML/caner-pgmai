@@ -253,6 +253,7 @@ def train_test_split_by_day(to_be_pickled=False):
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return train_df,test_df
 
+
 def convert_time_window_df_randomvar(to_be_pickled=False,
 #                                      neighborhood_def=np.setdiff1d):
                                     neighborhood_def='dnm'):
@@ -310,12 +311,126 @@ def convert_time_window_df_randomvar(to_be_pickled=False,
                     'wb'),protocol=cPickle.HIGHEST_PROTOCOL)
     return train_set,test_set
 
-# convert_time_window_df_randomvar(to_be_pickled=True)
 
-def zirva():
-    a = SensorRVNode(1,2,3)
-    print a.__dict__
-# zirva()
+def create_time_window_df_hour_feature(digitizeddf=None,
+                           time_window_df=None,
+                           to_be_pickled=False):
+    '''The data returned by this method is a pandas data frame. It's the
+    time windowed temporal data, that is 545 rows for each sensor. Columns are
+        'digTime', 'moteid', 'temperature', 'digTemp', 'hour'
+    The hour feature here is can be 3, 9, 15, 21
+    '''
+    if digitizeddf is None:
+        try:
+            digitizeddf = cPickle.load(open(DATA_DIR_PATH+
+                                            'digitizeddf.pickle','rb'))
+        except(IOError):
+            digitizeddf = digitize_data(to_be_pickled=to_be_pickled)
+    if time_window_df is None:
+        try:
+            time_window_df = cPickle.load(open(DATA_DIR_PATH+
+                                          'time_window_df.pickle','rb'))
+        except(IOError):            
+            time_window_df = window_data(digitizeddf=digitizeddf,
+                                         to_be_pickled=to_be_pickled)
+    time_window_df.sort(columns=['digTime','moteid'],inplace=True)
+#     daytime = np.array(map(lambda x: x.hour/float(48), digitizeddf.datentime))
+    daytime = np.array(map(lambda x: x.hour + (x.minute>29)*.5, digitizeddf.datentime))
+    digitizeddf['daytime']=daytime
+    dayTimeList = np.empty((time_window_df.shape[0]),dtype=np.float_)
+    for i in range(0,time_window_df.shape[0]):
+        dayTimeList[i] = digitizeddf[digitizeddf.digTime ==
+                time_window_df.digTime.iloc[i]].daytime.iloc[0]
+    time_window_df['hour'] = dayTimeList
+    if to_be_pickled:
+        cPickle.dump(time_window_df,
+            open(DATA_DIR_PATH+'time_window_df_hour_feature.pickle','wb'))
+    return time_window_df
+
+def add_day_to_time_window_df_hour(time_window_df=None,to_be_pickled=False):
+    if time_window_df is None:
+        try:
+            time_window_df = cPickle.load(open(DATA_DIR_PATH+
+                        'time_window_df_hour_feature.pickle','rb'))
+        except(IOError):
+            time_window_df = create_time_window_df_bin_feature(to_be_pickled=
+                                                               to_be_pickled)
+    timeBins = np.arange(12)*48 + 1
+    timeBins = timeBins[1:]
+    days = np.digitize(time_window_df.digTime,timeBins)
+    time_window_df['day'] = days
+    return time_window_df
+
+def train_test_split_by_day_hour(to_be_pickled=False):
+#     train_days = range(5)
+#     test_days = range(5,10)
+    train_days = [2,3,4]
+    test_days = [5,6]
+    time_window_df = add_day_to_time_window_df_hour()
+    train_df = time_window_df[time_window_df.day.isin(train_days)]
+    test_df = time_window_df[time_window_df.day.isin(test_days)]
+    if to_be_pickled:
+        cPickle.dump((train_df,test_df),open(DATA_DIR_PATH+
+                     'traintestdayshour.pickle','wb'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+    return train_df,test_df
+
+def convert_time_window_df_randomvar_hour(to_be_pickled=False,
+#                                      neighborhood_def=np.setdiff1d):
+                                    neighborhood_def='dnm'):
+    try:
+        train_set,test_set = cPickle.load(
+            open(DATA_DIR_PATH+neighborhood_def.__name__+'_hour.pickle','rb'))
+#         raise IOError
+    except(IOError):
+        try:
+            traindays,testdays = cPickle.load(
+                open(DATA_DIR_PATH+'traintestdayshour.pickle','rb'))
+        except(IOError):
+            traindays,testdays = train_test_split_by_day_hour(to_be_pickled)
+        sensor_IDs = traindays.moteid.unique()
+        digTime_list = traindays.digTime.unique()
+        num_sensors = sensor_IDs.shape[0]
+        num_dig_time = traindays.digTime.unique().shape[0]
+        train_set = np.ndarray(shape=(num_sensors,num_dig_time),
+                               dtype=SensorRVNode)
+        for sensor,digTime in itertools.product(sensor_IDs, digTime_list):
+            row = traindays[(traindays.moteid==sensor) &
+                            (traindays.digTime==digTime)].iloc[0]
+            sensor_id = row.moteid
+            sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
+            dig_time = np.where(digTime_list==digTime)[0][0]
+            local_feature_vector = row.hour
+            neighbors = neighborhood_def(sensor_id, sensor_IDs)
+            train_set[sensor_idx,dig_time] = \
+                SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
+                             day=row.day, true_label=row.temperature,
+                             local_feature_vector=local_feature_vector,
+                             is_observed=False, neighbors=neighbors)
+        num_dig_time = testdays.digTime.unique().shape[0]
+        test_set = np.ndarray(shape=(num_sensors,num_dig_time),
+                               dtype=SensorRVNode)
+        digTime_list = testdays.digTime.unique()
+        for i in range(len(testdays)):
+            row = testdays.iloc[i]
+            sensor_id = row.moteid
+            sensor_idx = np.where(sensor_IDs==sensor_id)[0][0]
+            dig_time = np.where(digTime_list==row.digTime)[0][0]
+    #         print sensor_id,'\t',sensor_idx,'\t',dig_time
+            local_feature_vector = row.hour
+            neighbors = neighborhood_def(sensor_id, sensor_IDs)
+            test_set[sensor_idx,dig_time] = \
+                SensorRVNode(sensor_id=sensor_id, dig_time=row.digTime,
+                             day=row.day, true_label=row.temperature,
+                             local_feature_vector=local_feature_vector,
+                             is_observed=False, neighbors=neighbors)
+        if to_be_pickled:
+            cPickle.dump((train_set,test_set),
+                     open(DATA_DIR_PATH+neighborhood_def.__name__+'_hour.pickle',
+                    'wb'),protocol=cPickle.HIGHEST_PROTOCOL)
+    return train_set,test_set
+
+# convert_time_window_df_randomvar(to_be_pickled=True)
 
 #test1
 # tempdf = read_data()
