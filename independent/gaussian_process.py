@@ -78,4 +78,4 @@ class GaussianProcessLocal(MLRegModel):
         end = time()
         print 'Process ended, duration:', end - start
         
-# GaussianProcessLocal.run()
+GaussianProcessLocal.run()
