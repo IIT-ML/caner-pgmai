@@ -6,10 +6,14 @@ Created on May 12, 2015
 from models.ml_reg_model import MLRegModel
 from utils.readdata import convert_time_window_df_randomvar_hour
 from utils.node import Neighborhood
+from utils.metropolis_hastings import metropolisHastingsSamplingTemporal
 
 import numpy as np
 from scipy.stats import norm
 from toposort import toposort, toposort_flatten
+from time import time
+import cPickle
+from utils import readdata
 
 class GaussianDBN(MLRegModel):
     '''
@@ -106,7 +110,7 @@ class GaussianDBN(MLRegModel):
         if initial == True:
             parents = parents[:-1]
             if parents == []:
-                return mea[sensid],0,cova[sensid,sensid]
+                return mea[sensid],np.array([]),cova[sensid,sensid]
         firstInd = np.tile(tuple(parents),len(parents))
         secondInd = np.repeat(tuple(parents),len(parents))
         YY = cova[sensid,sensid].reshape(1,1)
@@ -353,8 +357,42 @@ def stupidTest():
             muMat[id_,t] = mu
             varMat[id_,t] = var
             probDenMat[id_,t] = rv.pdf(testset[id_,0].true_label)
-            
-stupidTest()
+
+def testMH():
+    start = time()
+    trainset,testset = convert_time_window_df_randomvar_hour(True,
+                            Neighborhood.all_others_current_time)
+    gdbn = GaussianDBN()
+    gdbn.fit(trainset)
+    parentDict = gdbn.parentDict
+    rvids = np.array(parentDict.keys())
+    rvCount = int(rvids.shape[0])
+    T = 10
+    evidMat = np.zeros((rvCount,T),dtype=np.bool_)
+    evidMat[2,0] = True
+    testMat = np.zeros((rvCount,T),dtype=np.float_)
+    testMat[2,0] = 25.0
+    
+    
+    sampleSize = 20
+    burnInCount = 1000
+    samplingPeriod = 2
+    width = 0.3
+    
+    startupVals = np.ones((rvCount,T),dtype=np.float_)*20
+    
+    (data,accList,propVals,accCount) = metropolisHastingsSamplingTemporal(gdbn.sortedids,
+                                            parentDict, gdbn.cpdParams, startupVals, evidMat,
+                                            testMat, sampleSize=sampleSize,
+                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
+                                            proposalDist='uniform', width=width)
+    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvidDnm2.pkl','wb'))
+    
+    print 'Process Ended in ', time() - start
+    
+testMH()
+
+# stupidTest()
 # testPredict()
 
 
