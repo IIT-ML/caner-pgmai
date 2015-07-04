@@ -6,7 +6,7 @@ Created on May 12, 2015
 from models.ml_reg_model import MLRegModel
 from utils.readdata import convert_time_window_df_randomvar_hour
 from utils.node import Neighborhood
-from utils.metropolis_hastings import metropolisHastingsSamplingTemporal
+from utils.metropolis_hastings import MetropolisHastings
 
 import numpy as np
 from scipy.stats import norm
@@ -361,7 +361,8 @@ def stupidTest():
 def testMH():
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.all_others_current_time)
+                            Neighborhood.itself_previous_others_current)
+#                             Neighborhood.all_others_current_time)
     gdbn = GaussianDBN()
     gdbn.fit(trainset)
     parentDict = gdbn.parentDict
@@ -375,18 +376,19 @@ def testMH():
     
     
     sampleSize = 20
-    burnInCount = 1000
+    burnInCount = 10
     samplingPeriod = 2
     width = 0.3
     
     startupVals = np.ones((rvCount,T),dtype=np.float_)*20
     
-    (data,accList,propVals,accCount) = metropolisHastingsSamplingTemporal(gdbn.sortedids,
+    metropolisHastings = MetropolisHastings()
+    (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(gdbn.sortedids,
                                             parentDict, gdbn.cpdParams, startupVals, evidMat,
                                             testMat, sampleSize=sampleSize,
                                             burnInCount=burnInCount, samplingPeriod=samplingPeriod,
                                             proposalDist='uniform', width=width)
-    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvidDnm2.pkl','wb'))
+    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvidDnm8.pkl','wb'))
     
     print 'Process Ended in ', time() - start
     
