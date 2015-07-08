@@ -7,13 +7,14 @@ from models.ml_reg_model import MLRegModel
 from utils.readdata import convert_time_window_df_randomvar_hour
 from utils.node import Neighborhood
 from utils.metropolis_hastings import MetropolisHastings
+from utils import readdata
 
 import numpy as np
 from scipy.stats import norm
 from toposort import toposort, toposort_flatten
 from time import time
 import cPickle
-from utils import readdata
+import sys
 
 class GaussianDBN(MLRegModel):
     '''
@@ -375,10 +376,10 @@ def testMH():
     testMat[2,0] = 25.0
     
     
-    sampleSize = 20
-    burnInCount = 10
+    sampleSize = 2000
+    burnInCount = 1000
     samplingPeriod = 2
-    width = 0.3
+    width = float(sys.argv[1])
     
     startupVals = np.ones((rvCount,T),dtype=np.float_)*20
     
@@ -388,10 +389,43 @@ def testMH():
                                             testMat, sampleSize=sampleSize,
                                             burnInCount=burnInCount, samplingPeriod=samplingPeriod,
                                             proposalDist='uniform', width=width)
-    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvidDnm8.pkl','wb'))
+    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvid1weight='+
+                                                        str(width)+'.pkl','wb'))
     
     print 'Process Ended in ', time() - start
     
+def testMH2():
+    start = time()
+    parentDict = {0:[3],1:[0,4],2:[1,5]}
+    cpdParams = np.empty(shape=(3,2),dtype=tuple)
+    cpdParams[0,0] = (21.7211,np.array([]),5.79045)
+    cpdParams[1,0] = (-1.43977,np.array([1.04446]),0.638121)
+    cpdParams[2,0] = (-1.58985,np.array([1.0515]),0.871026)
+    cpdParams[0,1] = (0.90683765,np.array([0.95825092]),0.41825906)
+    cpdParams[1,1] = (-1.17329,np.array([0.49933,0.544751]),0.278563)
+    cpdParams[2,1] = (-0.902438,np.array([0.410928,0.622744]),0.390682)
+    rvids = np.array(parentDict.keys())
+    rvCount = int(rvids.shape[0])
+    T = 2
+    evidMat = np.zeros((rvCount,T),dtype=bool)
+    testMat = np.zeros((rvCount,T))
+    sampleSize = 20
+    burnInCount = 10
+    samplingPeriod = 2
+    width = 0.3
+    startupVals = np.array([[20., 20., 20., 20.],
+                            [20., 20., 20., 20.],
+                            [20., 20., 20., 20.]])
+    metropolisHastings = MetropolisHastings()
+    (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(rvids,
+                                            parentDict, cpdParams, startupVals, evidMat,
+                                            testMat, sampleSize=sampleSize,
+                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
+                                            proposalDist='uniform', width=width)
+    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvidDnm12.pkl','wb'))
+    
+    print 'Process Ended in ', time() - start
+
 testMH()
 
 # stupidTest()
