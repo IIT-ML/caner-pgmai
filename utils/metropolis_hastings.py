@@ -192,6 +192,7 @@ class MetropolisHastings:
                                            burnInCount=1000, samplingPeriod=2, proposalDist='uniform',
                                            width = 5):
         
+        
         self.rvids = rvids
         if proposalDist=='uniform':
             proposalDist = self.proposeFromUniform
@@ -212,6 +213,11 @@ class MetropolisHastings:
             testMat = np.zeros(shape=rvids.shape,dtype=bool)
         
         self.rvCount = int(startupVals.shape[0])
+        if type(width) is not list: 
+            if type(width) is int or type(width) is float:
+                width = [width] * self.rvCount
+            else:
+                raise TypeError('Type of \'width\' is not recognized') 
         self.T = startupVals.shape[1]
         self.localProbs = np.zeros((self.rvCount,self.T),dtype=np.float64)
         self.localPrimeProbs = np.zeros((self.rvCount,self.T),dtype=np.float64)
@@ -230,7 +236,7 @@ class MetropolisHastings:
             for rvid in rvids[~evidMat[:,0]]:
     #             newVal = proposeFromUniform(currentVals[rvid,0],width)
     #             newVal = proposeFromNormal(currentVals[rvid,0],width)
-                newVal = proposalDist(currentVals[rvid,0],width)
+                newVal = proposalDist(currentVals[rvid,0],width[rvid])
                 propVals[i,rvid,0] = newVal
                 acceptProb = self.acceptInitial(x_new = newVal, rvid=rvid,
                                             parentDict=parentDict, childDict=childDict, 
@@ -253,7 +259,7 @@ class MetropolisHastings:
                 for rvid in rvids[~evidMat[:,t]]:
     #                 newVal = proposeFromUniform(currentVals[rvid,t],width)
     #                 newVal = proposeFromNormal(currentVals[rvid,t],width)
-                    newVal = proposalDist(currentVals[rvid,t],width)
+                    newVal = proposalDist(currentVals[rvid,t],width[rvid])
                     propVals[i,rvid,t] = newVal
                     acceptProb = self.acceptTemporal(x_new = newVal, rvid=rvid,
                                                 parentDict=parentDict, childDict=childDict, 
