@@ -4,17 +4,16 @@ Created on May 12, 2015
 @author: ckomurlu
 '''
 from models.ml_reg_model import MLRegModel
-from utils.readdata import convert_time_window_df_randomvar_hour
 from utils.node import Neighborhood
 from utils.metropolis_hastings import MetropolisHastings
 from utils import readdata
 
 import numpy as np
 from scipy.stats import norm
-from toposort import toposort, toposort_flatten
-from time import time
-import cPickle
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import minimum_spanning_tree
 import sys
+from collections import Counter
 
 class GaussianDBN(MLRegModel):
     '''
@@ -30,7 +29,18 @@ class GaussianDBN(MLRegModel):
         self.cpdParams = object()
         self.parentDict = dict()
     
-    def fit(self,trainset):
+    def fit(self, trainset, topology='original'):
+        '''
+        Parameters
+        trainset: It has to be a 2D matrix. Each entry should be a rv object,
+            rows are sensors, columns are time
+        topology: 3 network topologies can be selected. 'original' is the way it is
+            computed based on only information matrix.  'mst' is the it is computed
+            using maximum spanning tree over information matrix. 'mst enriched' is 
+            the way one more connection is added to all nodes that have only one
+            parent
+        '''
+        self.rvCount = trainset.shape[0]
         X = np.vectorize(lambda x: x.true_label)(trainset)
         mea = np.mean(X,axis=1)
         mea100 = np.append(mea,mea)
@@ -39,6 +49,110 @@ class GaussianDBN(MLRegModel):
         cova100 = np.cov(Y)
         infomat = np.linalg.inv(cova)
         absround = np.absolute(np.around(infomat,6))
+        if topology == 'original':
+            self.setParentsByThreshold(absround)
+        elif topology == 'mst':
+            self.setParentsByMST(absround)
+        elif topology == 'mst_enriched':
+            self.setParentsByMST_enriched(absround)
+        else:
+            raise ValueError('topology should be either original, or mst or mst_enriched.')
+        self.cpdParams = np.empty(shape=mea.shape + (2,), dtype=tuple)
+        for i in self.sortedids:
+            self.cpdParams[i,0] = self.__computeCondGauss(i,self.parentDict,mea100,
+                                                        cova100,initial=True)
+            self.cpdParams[i,1] = self.__computeCondGauss(i,self.parentDict,
+                                                        mea100,cova100)
+    
+    def setParentsByMST(self,absround):
+        self.parentDict = dict()
+        for i in range(self.rvCount):
+            self.parentDict[i] = list()
+        Tabsround = minimum_spanning_tree(csr_matrix(-absround))
+        Tabscoo = Tabsround.tocoo()
+        connectionConcat = np.append(Tabscoo.col,Tabscoo.row)
+        connectionCounts = Counter(connectionConcat)
+        startidx = np.argmax(connectionCounts.values())
+        grey = [startidx]
+        black = list()
+        colList = Tabscoo.col
+        rowList = Tabscoo.row
+        while grey:
+            cur = grey.pop(0)
+            black.append(cur)
+            indicesInCol = np.where(np.array(colList) == cur)
+            children = rowList[indicesInCol[0]]
+            rowList = np.delete(rowList,indicesInCol[0])
+            colList = np.delete(colList,indicesInCol[0])
+            for child in children:
+                self.parentDict[child].append(cur)
+            grey += children.tolist()
+        
+            indicesInRow = np.where(np.array(rowList) == cur)
+            children = colList[indicesInRow[0]]
+            rowList = np.delete(rowList,indicesInRow[0])
+            colList = np.delete(colList,indicesInRow[0])
+            for child in children:
+                self.parentDict[child].append(cur)
+            grey += children.tolist()
+        for key in self.parentDict:
+            self.parentDict[key].append(key + self.rvCount)
+        self.sortedids = black
+        
+        
+    def setParentsByMST_enriched(self, absround):
+        raise NotImplementedError('This topology has implementation problems.')
+        self.parentDict = dict()
+        for i in range(self.rvCount):
+            self.parentDict[i] = list()
+        trilIndices = np.tril_indices(self.rvCount)
+        absround[trilIndices] = 0
+        mstSparse = minimum_spanning_tree(csr_matrix(-absround))
+        mstEdges = (mstSparse.toarray() != 0)
+        connectCounts = np.sum(mstEdges,axis=0) + np.sum(mstEdges,axis=1)
+        startidx = np.argmax(connectCounts)
+        colList = mstSparse.tocoo().col
+        rowList = mstSparse.tocoo().row
+        for i in np.where(connectCounts == 1)[0]:
+            sortedInd = np.argsort(absround[i])
+            for j in range(-1,-self.rvCount,-1):
+#                 if (not sortedInd[j] in self.parentDict[i]) and \
+#                     (not i in self.parentDict[sortedInd[j]]):
+                if not mstEdges[i,sortedInd[j]] and \
+                    not mstEdges[sortedInd[j],i]:
+                    if i < sortedInd[j]:
+                        mstEdges[i,sortedInd[j]] = True
+                    else:
+                        mstEdges[sortedInd[j],i] = True
+                    colList = np.hstack((colList,[i]))
+                    rowList = np.hstack((rowList,[sortedInd[j]]))
+#                     rowList.append(sortedInd[j]) 
+#                     self.parentDict[i].append(sortedInd[j])
+                    break
+        grey = set([startidx])
+        black = list()
+        while grey:
+            cur = grey.pop()
+            black.append(cur)
+            indicesInCol = np.where(np.array(colList) == cur)
+            children = rowList[indicesInCol[0]]
+            rowList = np.delete(rowList,indicesInCol[0])
+            colList = np.delete(colList,indicesInCol[0])
+            for child in children:
+                self.parentDict[child].append(cur)
+            grey |= set(children.tolist())
+            indicesInRow = np.where(np.array(rowList) == cur)
+            children = colList[indicesInRow[0]]
+            rowList = np.delete(rowList,indicesInRow[0])
+            colList = np.delete(colList,indicesInRow[0])
+            for child in children:
+                self.parentDict[child].append(cur)
+            grey |= set(children.tolist())
+        self.sortedids = black
+        for key in self.parentDict:
+            self.parentDict[key].append(key + self.rvCount)
+    
+    def setParentsByThreshold(self, absround):
         (a,b) = np.nonzero(absround > 24.3)
         condict = dict()
         for i in range(a.shape[0]):
@@ -56,7 +170,6 @@ class GaussianDBN(MLRegModel):
             for nei in condict[id_]:
                 if self.sortedids.index(id_) < self.sortedids.index(nei):
                     arclist.append((id_,nei))
-        self.cpdParams = np.empty(shape=mea.shape + (2,), dtype=tuple)
         self.parentDict = self.__convertArcsToGraphInv(arclist)
         self.checkParentChildOrder()
         for currentid in self.sortedids:
@@ -65,12 +178,6 @@ class GaussianDBN(MLRegModel):
             except KeyError:
                 self.parentDict[currentid] = list()
                 self.parentDict[currentid].append(currentid + 50)
-        for i in self.sortedids:
-            self.cpdParams[i,0] = self.__computeCondGauss(i,self.parentDict,mea100,
-                                                        cova100,initial=True)
-            self.cpdParams[i,1] = self.__computeCondGauss(i,self.parentDict,
-                                                        mea100,cova100)
-    
         
     def __convertArcsToGraphInv(self,arclist):
         graph = dict()
@@ -185,7 +292,25 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
     
-    def predict(self, testset, evidence_mat=None):
+    def predict(self, testMat, evidMat, sampleSize=2000, burnInCount=1000, samplingPeriod=2):
+        T = evidMat.shape[0]
+        startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
+        width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
+             0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
+             0.6,1.5,1.4,1.5,0.5,0.5]
+        metropolisHastings = MetropolisHastings()
+        (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(self.sortedids,
+                                            self.parentDict, self.cpdParams, startupVals, evidMat,
+                                            testMat, sampleSize=sampleSize,
+                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
+                                            proposalDist='uniform', width=width)
+#         cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH +
+#                                                         'mhResultsEvid1weightAdj_9k_mst.pkl','wb'))
+        dataarr = np.array(data)
+        muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
+        return muData
+        
+    def predict_incorrect(self, testset, evidence_mat=None):
         Y_true = np.vectorize(lambda x: x.true_label)(testset)
         if evidence_mat is None:
             evidence_mat = np.zeros(testset.shape,dtype=np.bool8)
@@ -238,6 +363,9 @@ class GaussianDBN(MLRegModel):
                     print valueError
         return Y_pred
         
+#     def compute_mean_absolute_error(self,test_set,Y_pred, type_=0, evidence_mat=None):
+#         super(GaussianDBN,self).compute_mean_absolute_error(test_set,Y)
+        
     def compute_accuracy(self, Y_test, Y_pred):
         raise NotImplementedError('Method compute_accuracy() is not yet implemented.')
     
@@ -260,7 +388,7 @@ class GaussianDBN(MLRegModel):
         sampleStorage = np.empty(shape = (sampleSize,len(self.sortedids),T),
                                      dtype=np.float64)
         for currentSample in xrange(sampleSize):
-        #     print currentSample
+            print currentSample
             for currentid in self.sortedids:
                 if evidMat[currentid,0]:
                     sampleStorage[currentSample,currentid,0] = testMat[currentid,0]
@@ -296,333 +424,18 @@ class GaussianDBN(MLRegModel):
                             np.random.normal(currentmean,var**.5)
         return sampleStorage
 
+    def getChildDict(self):
+#         rvids = np.array(self.parentDict.keys())
+#         rvCount = rvids.shape[0]
+        childDict = dict()
+        for key in self.sortedids:
+            childDict[key] = list()
+        for key in self.sortedids:
+            for val in self.parentDict[key]:
+                if val < self.rvCount:
+                    childDict[val].append(key)
+                else:
+                    childDict[val - self.rvCount].append(key + self.rvCount)
+        return childDict
 
 
-def test():
-    np.random.seed(42)
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    numSlice = 6
-    result = np.empty(shape=(100,12),dtype=np.float64)
-    for i in range(6):
-        evidMap = np.zeros((len(gdbn.sortedids),numSlice),dtype=np.bool_)
-        evidMap[1,i] = True
-    #     evidMap[15,3] = True
-        (sampleStorage,weightList, logWeightList) = gdbn.likelihoodWeighting(evidMap, trainset, sampleSize = 100)
-        result[:,2*i] = weightList
-        result[:,2*i+1] = logWeightList
-    for row in result:
-        for col in row:
-            print col,
-        print
-    return
-
-def testPredictTrial():
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    Y_pred = gdbn.predict_trial(testset)
-    return
-
-def testPredict():
-    np.random.seed(17)
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    (sensorCount,testTimeCount) = testset.shape
-    numTrial = 10
-#     rateList = np.arange(0.0,1.1,0.1)
-    rateList = [0.001, 0.01]
-    resultMat = np.empty((numTrial,len(rateList),6))
-    for currentTrial in xrange(numTrial):
-        rateInd = 0
-        for evidRate in rateList:
-            evidMat = np.random.rand(sensorCount,testTimeCount) < evidRate
-#             Y_pred = gdbn.predict(testset,evidMat)
-            Y_pred = gdbn.predictTrial(testset,evidMat)
-#             Y_true = np.vectorize(lambda x: x.true_label)(testset)
-            resultMat[currentTrial,rateInd,0] = gdbn.compute_mean_squared_error(test_set=testset,
-                                                                                 Y_pred=Y_pred, type_=0, evidence_mat=evidMat)
-            resultMat[currentTrial,rateInd,1] = gdbn.compute_mean_squared_error(test_set=testset,
-                                                                                 Y_pred=Y_pred, type_=1, evidence_mat=evidMat)
-            resultMat[currentTrial,rateInd,2] = gdbn.compute_mean_squared_error(test_set=testset,
-                                                                                 Y_pred=Y_pred, type_=2, evidence_mat=evidMat)
-            resultMat[currentTrial,rateInd,3] = gdbn.compute_mean_absolute_error(test_set=testset,
-                                                                                 Y_pred=Y_pred, type_=0, evidence_mat=evidMat)
-            resultMat[currentTrial,rateInd,4] = gdbn.compute_mean_absolute_error(test_set=testset,
-                                                                                 Y_pred=Y_pred, type_=1, evidence_mat=evidMat)
-            resultMat[currentTrial,rateInd,5] = gdbn.compute_mean_absolute_error(test_set=testset,
-                                                                                 Y_pred=Y_pred, type_=2, evidence_mat=evidMat)
-            rateInd += 1
-    np.savetxt('C:/Users/ckomurlu/Documents/workbench/experiments/20150528/GDBN_RandomSamplingWrtRates.txt',
-               np.mean(resultMat,axis=0),delimiter=',',fmt='%.4f')
-
-def stupidTest():
-    np.random.seed(17)
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    evidMat = np.zeros((50,10),dtype=np.bool_)
-    (sampleStorage,weightList, logWeightList) = \
-                gdbn.likelihoodWeighting(evidMat, testset, sampleSize = 10)
-    numSlice = 10
-    muMat = np.empty((50,10),dtype=np.float64)
-    varMat = np.empty((50,10),dtype=np.float64)
-    probDenMat = np.empty((50,10),dtype=np.float64)
-    for id_ in gdbn.sortedids:
-        parents = gdbn.parentDict[id_][:-1]
-        cpdParams = gdbn.cpdParams[id_,0]
-        try:
-            mu = cpdParams[0] + np.dot(cpdParams[1].T,sampleStorage[0,parents,0])
-        except AttributeError:
-            mu = cpdParams[0]
-        var = cpdParams[2]
-        rv = norm(loc=mu,scale=var**.5)
-        muMat[id_,0] = mu
-        varMat[id_,0] = var
-        probDenMat[id_,0] = rv.pdf(testset[id_,0].true_label)
-    for t in xrange(1,numSlice):
-        for id_ in gdbn.sortedids:
-            parentsT = gdbn.parentDict[id_][:-1]
-            parentsVals = np.append(sampleStorage[0,parentsT,t],
-                                    sampleStorage[0,id_,t-1])
-            cpdParams = gdbn.cpdParams[id_,1]
-            mu = cpdParams[0] + np.dot(cpdParams[1].T,parentsVals)
-            var = cpdParams[2]
-            rv = norm(loc=mu,scale=var**.5)
-            muMat[id_,t] = mu
-            varMat[id_,t] = var
-            probDenMat[id_,t] = rv.pdf(testset[id_,0].true_label)
-
-def testMH():
-    start = time()
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.itself_previous_others_current)
-#                             Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    parentDict = gdbn.parentDict
-    rvids = np.array(parentDict.keys())
-    rvCount = int(rvids.shape[0])
-    T = 10
-    evidMat = np.zeros((rvCount,T),dtype=np.bool_)
-    evidMat[2,0] = True
-    testMat = np.zeros((rvCount,T),dtype=np.float_)
-    testMat[2,0] = 25.0
-    
-    
-    sampleSize = 2000
-    burnInCount = 1000
-    samplingPeriod = 2
-    width = float(sys.argv[1])
-    
-    startupVals = np.ones((rvCount,T),dtype=np.float_)*20
-    
-    metropolisHastings = MetropolisHastings()
-    (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(gdbn.sortedids,
-                                            parentDict, gdbn.cpdParams, startupVals, evidMat,
-                                            testMat, sampleSize=sampleSize,
-                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
-                                            proposalDist='uniform', width=width)
-    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvid1weight='+
-                                                        str(width)+'.pkl','wb'))
-    
-    print 'Process Ended in ', time() - start
-    
-def testMH3():
-    start = time()
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.itself_previous_others_current)
-#                             Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    parentDict = gdbn.parentDict
-    rvids = np.array(parentDict.keys())
-    rvCount = int(rvids.shape[0])
-    T = 10
-    evidMat = np.zeros((rvCount,T),dtype=np.bool_)
-    evidMat[2,0] = True
-    testMat = np.zeros((rvCount,T),dtype=np.float_)
-    testMat[2,0] = 25.0
-    
-    
-    sampleSize = 2000
-    burnInCount = 1000
-    samplingPeriod = 2
-    width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
-             0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
-             0.6,1.5,1.4,1.5,0.5,0.5]
-    
-    startupVals = np.ones((rvCount,T),dtype=np.float_)*20
-    
-    metropolisHastings = MetropolisHastings()
-    (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(gdbn.sortedids,
-                                            parentDict, gdbn.cpdParams, startupVals, evidMat,
-                                            testMat, sampleSize=sampleSize,
-                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
-                                            proposalDist='uniform', width=width)
-    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH +
-                                                        'mhResultsEvid1weightAdj=5.pkl','wb'))
-    
-    print 'Process Ended in ', time() - start
-    
-def testMH4():
-    start = time()
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.itself_previous_others_current)
-#                             Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    parentDict = gdbn.parentDict
-    rvids = np.array(parentDict.keys())
-    rvCount = int(rvids.shape[0])
-    T = 12
-    evidMat = np.zeros((rvCount,T),dtype=np.bool_)
-    evidMat[:,0] = True
-    testMat = np.zeros((rvCount,T),dtype=np.float_)
-    Y = np.vectorize(lambda x: x.true_label)(testset)
-#     testMat[:,0] = Y[:,8]
-    testMat[:,0] = 25.0
-    
-    
-    sampleSize = 10000
-    burnInCount = 2000
-    samplingPeriod = 2
-    width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
-             0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
-             0.6,1.5,1.4,1.5,0.5,0.5]
-    
-    startupVals = np.ones((rvCount,T),dtype=np.float_)*20
-    
-    metropolisHastings = MetropolisHastings()
-    (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(gdbn.sortedids,
-                                            parentDict, gdbn.cpdParams, startupVals, evidMat,
-                                            testMat, sampleSize=sampleSize,
-                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
-                                            proposalDist='uniform', width=width)
-    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH +
-                                                        'mhResultsEvid1weightAdj=9.pkl','wb'))
-    
-    print 'Process Ended in ', time() - start
-
-def testForwardSampling():
-    start = time()
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.itself_previous_others_current)
-#                             Neighborhood.all_others_current_time)
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset)
-    rvCount = len(gdbn.sortedids)
-    T = 12
-    evidMat = np.zeros((rvCount,T),dtype=np.bool_)
-    evidMat[:,0] = True
-    testMat = np.zeros((rvCount,T),dtype=np.float_)
-    Y = np.vectorize(lambda x: x.true_label)(testset)
-#     testMat[:,0] = Y[:,8]
-    testMat[:,0] = 25.0
-    
-    sampleSize = 2000
-    
-    sampleStorage = gdbn.forwardSampling(evidMat, testMat, sampleSize, T)
-    cPickle.dump(sampleStorage,open(readdata.DATA_DIR_PATH + 'forwardSamplingGDBN3.pkl','wb'))
-    print 'Process ended in: ', time() - start
-    
-def testMH2():
-    start = time()
-    parentDict = {0:[3],1:[0,4],2:[1,5]}
-    cpdParams = np.empty(shape=(3,2),dtype=tuple)
-    cpdParams[0,0] = (21.7211,np.array([]),5.79045)
-    cpdParams[1,0] = (-1.43977,np.array([1.04446]),0.638121)
-    cpdParams[2,0] = (-1.58985,np.array([1.0515]),0.871026)
-    cpdParams[0,1] = (0.90683765,np.array([0.95825092]),0.41825906)
-    cpdParams[1,1] = (-1.17329,np.array([0.49933,0.544751]),0.278563)
-    cpdParams[2,1] = (-0.902438,np.array([0.410928,0.622744]),0.390682)
-    rvids = np.array(parentDict.keys())
-    rvCount = int(rvids.shape[0])
-    T = 2
-    evidMat = np.zeros((rvCount,T),dtype=bool)
-    testMat = np.zeros((rvCount,T))
-    sampleSize = 20
-    burnInCount = 10
-    samplingPeriod = 2
-    width = 0.3
-    startupVals = np.array([[20., 20., 20., 20.],
-                            [20., 20., 20., 20.],
-                            [20., 20., 20., 20.]])
-    metropolisHastings = MetropolisHastings()
-    (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(rvids,
-                                            parentDict, cpdParams, startupVals, evidMat,
-                                            testMat, sampleSize=sampleSize,
-                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
-                                            proposalDist='uniform', width=width)
-    cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH + 'mhResultsEvidDnm12.pkl','wb'))
-    
-    print 'Process Ended in ', time() - start
-
-testMH4()
-# testForwardSampling()
-
-# stupidTest()
-# testPredict()
-
-
-########################
-####### Garbage ########
-########################
-
-#     def checkTopoSort(self):
-#         parentSet = dict()
-#         for i in self.parentDict:
-#             parentSet[i] = set(self.parentDict[i])
-#         toposorted = list(toposort(parentSet))
-#         followIndex = 0
-#         for item in self.sortedids:
-#             for i in xrange(followIndex,len(toposorted)):
-#                 if item in toposorted[i]:
-#                     followIndex = i
-#                     break
-#             else:
-#                 raise ValueError('sortedids list is not topologically sorted.'+str(item)+
-#                                  ' could not be found in the remaining topological sets' +
-#                                  ' following index:', followIndex)
-# 
-#     @staticmethod
-#     def checkTopoSortA(sortedids,parentDict):
-#         toposorted = list(toposort(parentDict))
-#         followIndex = 0
-#         for item in sortedids:
-#             for i in xrange(followIndex,len(toposorted)):
-#                 if item in toposorted[i]:
-#                     followIndex = i
-#                     break
-#             else:
-#                 raise ValueError('sortedids list is not topologically sorted.'+str(item)+
-#                                  ' could not be found in the remaining topological sets' +
-#                                  ' following index:', followIndex)
-# 
-# def testCheckTopoSort():
-# #     ts = list(toposort({2: {11},
-# #                 9: {11, 8, 10},
-# #                 10: {11, 3},
-# #                 11: {7, 5},
-# #                 8: {7, 3},
-# #                }))
-#     parentDict = {2: {11},
-#                 9: {11, 8, 10},
-#                 10: {11, 3},
-#                 11: {7, 5},
-#                 8: {7, 3},
-#                }
-#     tsf = toposort_flatten({2: {11},
-#                 9: {11, 8, 10},
-#                 10: {11, 3},
-#                 11: {7, 5},
-#                 8: {7, 3},
-#                })
-#     
-#     GaussianDBN.checkTopoSortA(tsf[::-1], parentDict)

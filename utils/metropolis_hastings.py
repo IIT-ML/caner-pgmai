@@ -214,7 +214,7 @@ class MetropolisHastings:
         
         self.rvCount = int(startupVals.shape[0])
         if type(width) is not list: 
-            if type(width) is int or type(width) is float:
+            if type(width) is int or type(width) is float or type(width) is np.float64:
                 width = [width] * self.rvCount
             else:
                 raise TypeError('Type of \'width\' is not recognized') 
@@ -231,9 +231,9 @@ class MetropolisHastings:
         propVals = np.zeros((sampleSize,rvids.shape[0],T))
         accCount = np.zeros((rvids.shape[0],T))
         for i in xrange(sampleSize):
-            print i
+#             print i
     #         print '\t0'
-            for rvid in rvids[~evidMat[:,0]]:
+            for rvid in rvids[~evidMat[rvids,0]]:
     #             newVal = proposeFromUniform(currentVals[rvid,0],width)
     #             newVal = proposeFromNormal(currentVals[rvid,0],width)
                 newVal = proposalDist(currentVals[rvid,0],width[rvid])
@@ -252,11 +252,11 @@ class MetropolisHastings:
                     for child in childDict[rvid]:
                         if child < self.rvCount:
                             self.localProbs[child,0] = self.localPrimeProbs[child,0]
-                        else:
+                        elif T > 1:
                             self.localProbs[child-self.rvCount,1] = self.localPrimeProbs[child-self.rvCount,1]
             for t in range(1,T):
     #             print '\t',t
-                for rvid in rvids[~evidMat[:,t]]:
+                for rvid in rvids[~evidMat[rvids,t]]:
     #                 newVal = proposeFromUniform(currentVals[rvid,t],width)
     #                 newVal = proposeFromNormal(currentVals[rvid,t],width)
                     newVal = proposalDist(currentVals[rvid,t],width[rvid])
@@ -277,9 +277,9 @@ class MetropolisHastings:
                             elif t < T-1:
                                 self.localProbs[child-self.rvCount,t+1] = self.localPrimeProbs[child-self.rvCount,t+1]
                         accCount[rvid,t] += 1
-            if i>burnInCount: 
-                if i % samplingPeriod:
-                    data.append(currentVals.copy())
+#             if i>burnInCount: 
+#                 if i % samplingPeriod:
+            data.append(currentVals.copy())
         return data, accList, propVals, accCount
     
     def initializeLocalProb(self,parentDict,cpdParams,startupVals):
