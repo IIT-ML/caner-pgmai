@@ -3,20 +3,22 @@ Created on May 13, 2015
 
 @author: ckomurlu
 '''
-PATH_TO_PGMAI = 'C:/Users/ckomurlu/git/pgmai'
-import os
-import sys
-sys.path.append(os.path.abspath(PATH_TO_PGMAI))
+# PATH_TO_PGMAI = 'C:/Users/ckomurlu/git/pgmai'
+# import os
+# import sys
+# sys.path.append(os.path.abspath(PATH_TO_PGMAI))
 from utils import readdata
 from utils.node import Neighborhood
 from utils.readdata import convert_time_window_df_randomvar_hour
 from joint.gaussian_DBN import GaussianDBN
 from utils.metropolis_hastings import MetropolisHastings
+import utils.properties
 
 import numpy as np
 import cPickle
 from time import time
 from scipy.stats import norm
+import sys
 
 def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):    
     sampleStorage = dict()
@@ -421,7 +423,7 @@ def testActiveInferenceGaussianDBN():
     tWin = 6
     observationRate = .1
     topology = 'mst'
-    T=96
+    T=12
     
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -433,11 +435,13 @@ def testActiveInferenceGaussianDBN():
 #     T = Y_test_allT.shape[1]
     evidMat = np.zeros(shape=testset.shape,dtype=np.bool_)
     results = np.empty(shape=(T,2))
+    selectMat = np.empty(shape=(T,obsCount),dtype=np.int16)
     print 'time:'
     for t in range(T):
         print t
         select = np.arange(gdbn.rvCount)
         randomState.shuffle(select)
+        selectMat[t] = select[:obsCount]
         evidMat[select[:obsCount],t] = True
         if t < tWin:
             Y_test = Y_test_allT[:,:t+1]
@@ -446,12 +450,19 @@ def testActiveInferenceGaussianDBN():
         else:
             Y_test = Y_test_allT[:,t+1-tWin:t+1]
             testMat = testset[:,t+1-tWin:t+1]
-            curEvidMat = evidMat[:,t+1-tWin:t+1] 
-        Y_pred = gdbn.predict(Y_test,curEvidMat)
-        results[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1], type_=2, evidence_mat=curEvidMat[:,-1])
-        results[t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1], type_=2, evidence_mat=curEvidMat[:,-1])
-    cPickle.dump(results, open(readdata.DATA_DIR_PATH+'result_activeInf_gaussianDBN_topology={}_window={}_T={}.pkl'.
-                               format(topology,tWin,T),'wb'), protocol=0)
+            curEvidMat = evidMat[:,t+1-tWin:t+1]
+        sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
+        startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
+        Y_pred = gdbn.predict(Y_test,curEvidMat, t, sampleSize=20,startupVals=startupVals)
+#         results[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1], type_=2,
+#                                                         evidence_mat=curEvidMat[:,-1])
+#         results[t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1], type_=2,
+#                                                        evidence_mat=curEvidMat[:,-1])
+    np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
+            observationRate), selectMat, delimiter=',')
+    cPickle.dump(results, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+
+                               'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,T,
+                                observationRate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration(sec): ', time()-start
 
 testActiveInferenceGaussianDBN()

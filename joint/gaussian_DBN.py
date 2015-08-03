@@ -7,13 +7,16 @@ from models.ml_reg_model import MLRegModel
 from utils.node import Neighborhood
 from utils.metropolis_hastings import MetropolisHastings
 from utils import readdata
+import utils.properties
+from utils.readdata import convert_time_window_df_randomvar_hour
 
 import numpy as np
 from scipy.stats import norm
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
-import sys
+import cPickle
 from collections import Counter
+from time import time
 
 class GaussianDBN(MLRegModel):
     '''
@@ -49,6 +52,7 @@ class GaussianDBN(MLRegModel):
         cova100 = np.cov(Y)
         infomat = np.linalg.inv(cova)
         absround = np.absolute(np.around(infomat,6))
+        self.topology = topology
         if topology == 'original':
             self.setParentsByThreshold(absround)
         elif topology == 'mst':
@@ -292,20 +296,26 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
     
-    def predict(self, testMat, evidMat, sampleSize=2000, burnInCount=1000, samplingPeriod=2):
-        T = evidMat.shape[0]
-        startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
-        width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
-             0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
-             0.6,1.5,1.4,1.5,0.5,0.5]
+    def predict(self, testMat, evidMat, t, sampleSize=2000, burnInCount=1000, samplingPeriod=2,
+                startupVals=None):
+        T = evidMat.shape[1]
+        if startupVals is None:
+            startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
+        else:
+            assert(testMat.shape==startupVals, 'testMat and startupVals shapes don\'t match')
+#         width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
+#              0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
+#              0.6,1.5,1.4,1.5,0.5,0.5]
+        width = 5.0
         metropolisHastings = MetropolisHastings()
         (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(self.sortedids,
                                             self.parentDict, self.cpdParams, startupVals, evidMat,
                                             testMat, sampleSize=sampleSize,
                                             burnInCount=burnInCount, samplingPeriod=samplingPeriod,
                                             proposalDist='uniform', width=width)
-#         cPickle.dump((data,accList,propVals,accCount), open(readdata.DATA_DIR_PATH +
-#                                                         'mhResultsEvid1weightAdj_9k_mst.pkl','wb'))
+        cPickle.dump((data,accList,propVals,accCount), open(utils.properties.outputDirPath +
+            'mhResults_topology={}_sampleSize={}_t={}_{}.pkl'.format(
+            self.topology,sampleSize,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)
         muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         return muData
@@ -327,7 +337,7 @@ class GaussianDBN(MLRegModel):
                 evidCurTime = evidence_mat[:,0]
                 parentValues[parents][evidCurTime[parents]] = Y_true[parents,0][evidCurTime[parents]]
                 parentValues = parentValues[parents]
-                currentmean = b0 + np.dot(b,parentValues)
+                currentmean = b0 + np.dot(b.T,parentValues)
             Y_pred[currentid,0] = currentmean
         for t in xrange(1,testset.shape[1]):
             for currentid in self.sortedids:
@@ -342,7 +352,7 @@ class GaussianDBN(MLRegModel):
                     itselfPrevious = Y_pred[currentid,t-1]
                 parentValuesT = parentValuesT[parents]
                 parentValues = np.append(parentValuesT, itselfPrevious)
-                currentmean = b0 + np.dot(b,parentValues)
+                currentmean = b0 + np.dot(b.T,parentValues)
                 Y_pred[currentid,t] = currentmean
         return Y_pred
     
@@ -438,4 +448,13 @@ class GaussianDBN(MLRegModel):
                     childDict[val - self.rvCount].append(key + self.rvCount)
         return childDict
 
+def testPredictIncorrect():
+    topology = 'mst'
+    start = time()
+    trainset,testset = convert_time_window_df_randomvar_hour(True,
+                            Neighborhood.itself_previous_others_current)
+    gdbn = GaussianDBN()
+    gdbn.fit(trainset, topology=topology)
+    Y_pred = gdbn.predict_incorrect(testset)
+    print 'End of process. Duration: {}'.format(time()-start)
 
