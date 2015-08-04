@@ -436,6 +436,7 @@ def testActiveInferenceGaussianDBN():
     evidMat = np.zeros(shape=testset.shape,dtype=np.bool_)
     results = np.empty(shape=(T,2))
     selectMat = np.empty(shape=(T,obsCount),dtype=np.int16)
+    sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
     print 'time:'
     for t in range(T):
         print t
@@ -451,15 +452,14 @@ def testActiveInferenceGaussianDBN():
             Y_test = Y_test_allT[:,t+1-tWin:t+1]
             testMat = testset[:,t+1-tWin:t+1]
             curEvidMat = evidMat[:,t+1-tWin:t+1]
-        sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
         startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
         Y_pred = gdbn.predict(Y_test,curEvidMat, t, sampleSize=20,startupVals=startupVals)
-#         results[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1], type_=2,
-#                                                         evidence_mat=curEvidMat[:,-1])
-#         results[t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1], type_=2,
-#                                                        evidence_mat=curEvidMat[:,-1])
-    np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
-            observationRate), selectMat, delimiter=',')
+        results[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1], type_=2,
+                                                        evidence_mat=curEvidMat[:,-1])
+        results[t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1], type_=2,
+                                                       evidence_mat=curEvidMat[:,-1])
+#     np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
+#             observationRate), selectMat, delimiter=',')
     cPickle.dump(results, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+
                                'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,T,
                                 observationRate,utils.properties.timeStamp),'wb'), protocol=0)
