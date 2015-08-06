@@ -423,7 +423,8 @@ def testActiveInferenceGaussianDBN():
     tWin = 6
     observationRate = .1
     topology = 'mst'
-    T=12
+    T = 12
+    numTrials = 3
     
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -434,35 +435,47 @@ def testActiveInferenceGaussianDBN():
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
 #     T = Y_test_allT.shape[1]
     evidMat = np.zeros(shape=testset.shape,dtype=np.bool_)
-    results = np.empty(shape=(T,2))
+    results = np.empty(shape=(numTrials,T,2))
     selectMat = np.empty(shape=(T,obsCount),dtype=np.int16)
     sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
-    print 'time:'
-    for t in range(T):
-        print t
-        select = np.arange(gdbn.rvCount)
-        randomState.shuffle(select)
-        selectMat[t] = select[:obsCount]
-        evidMat[select[:obsCount],t] = True
-        if t < tWin:
-            Y_test = Y_test_allT[:,:t+1]
-            testMat = testset[:,:t+1]
-            curEvidMat = evidMat[:,:t+1]
-        else:
-            Y_test = Y_test_allT[:,t+1-tWin:t+1]
-            testMat = testset[:,t+1-tWin:t+1]
-            curEvidMat = evidMat[:,t+1-tWin:t+1]
-        startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
-        Y_pred = gdbn.predict(Y_test,curEvidMat, t, sampleSize=20,startupVals=startupVals)
-        results[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1], type_=2,
-                                                        evidence_mat=curEvidMat[:,-1])
-        results[t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1], type_=2,
-                                                       evidence_mat=curEvidMat[:,-1])
+    print 'trial:'
+    for trial in range(numTrials):
+        print trial
+        print '\ttime:'
+        for t in range(T):
+            print '\t',t
+            select = np.arange(gdbn.rvCount)
+            randomState.shuffle(select)
+            selectMat[t] = select[:obsCount]
+            evidMat[select[:obsCount],t] = True
+            if t < tWin:
+                Y_test = Y_test_allT[:,:t+1]
+                testMat = testset[:,:t+1]
+                curEvidMat = evidMat[:,:t+1]
+            else:
+                Y_test = Y_test_allT[:,t+1-tWin:t+1]
+                testMat = testset[:,t+1-tWin:t+1]
+                curEvidMat = evidMat[:,t+1-tWin:t+1]
+            startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
+            Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=2000, burnInCount=1000,
+                                  startupVals=startupVals)
+            results[trial,t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],
+                                    type_=2, evidence_mat=curEvidMat[:,-1])
+            results[trial,t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
+                                    type_=2,evidence_mat=curEvidMat[:,-1])
+        np.savetxt(utils.properties.outputDirPath+
+            'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_{}_trial={}.csv'.
+            format(topology,tWin,T,observationRate, utils.properties.timeStamp,trial),
+            results[trial], delimiter=',')
+    np.savetxt(utils.properties.outputDirPath+
+        'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_{}_trial={}.csv'.
+        format(topology,tWin,T,observationRate, utils.properties.timeStamp,'mean'),
+        np.mean(results,axis=0), delimiter=',')
 #     np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
 #             observationRate), selectMat, delimiter=',')
     cPickle.dump(results, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+
-                               'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,T,
-                                observationRate,utils.properties.timeStamp),'wb'), protocol=0)
+                               'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,
+                                T, observationRate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration(sec): ', time()-start
 
 testActiveInferenceGaussianDBN()

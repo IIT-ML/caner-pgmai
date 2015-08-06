@@ -296,13 +296,13 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
     
-    def predict(self, testMat, evidMat, t, sampleSize=2000, burnInCount=1000, samplingPeriod=2,
-                startupVals=None):
+    def predict(self, testMat, evidMat, trial, t, sampleSize=2000, burnInCount=1000,
+                samplingPeriod=2, startupVals=None):
         T = evidMat.shape[1]
         if startupVals is None:
             startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
         else:
-            assert(testMat.shape==startupVals, 'testMat and startupVals shapes don\'t match')
+            assert testMat.shape==startupVals.shape, 'testMat and startupVals shapes don\'t match'
 #         width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
 #              0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
 #              0.6,1.5,1.4,1.5,0.5,0.5]
@@ -314,8 +314,8 @@ class GaussianDBN(MLRegModel):
                                             burnInCount=burnInCount, samplingPeriod=samplingPeriod,
                                             proposalDist='uniform', width=width)
         cPickle.dump((data,accList,propVals,accCount), open(utils.properties.outputDirPath +
-            'mhResults_topology={}_sampleSize={}_t={}_{}.pkl'.format(
-            self.topology,sampleSize,t,utils.properties.timeStamp),'wb'))
+            'mhResults_topology={}_sampleSize={}_trial={}_t={}_{}.pkl'.format(
+            self.topology,sampleSize,trial,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)
         muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         return muData

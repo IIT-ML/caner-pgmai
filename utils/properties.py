@@ -9,5 +9,5 @@ import time
 import datetime
 ts = time.time()
 
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150728/9/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150804/1/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
