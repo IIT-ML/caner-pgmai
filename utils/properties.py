@@ -9,5 +9,6 @@ import time
 import datetime
 ts = time.time()
 
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150804/1/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150811/3/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
+# timeStamp = '20150812_0101'

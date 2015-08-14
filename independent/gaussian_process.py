@@ -4,35 +4,44 @@ Created on Mar 9, 2015
 @author: ckomurlu
 '''
 
-from utils.readdata import convert_time_window_df_randomvar_hour
+from utils.readdata import convert_time_window_df_randomvar_hour, DATA_DIR_PATH
 from utils.node import Neighborhood
 from models.ml_reg_model import MLRegModel
+import utils.properties
 
 import numpy as np
 from sklearn.gaussian_process import GaussianProcess
 from sklearn.metrics import mean_absolute_error,mean_squared_error
 from time import time
+import cPickle as cpk
 
 class GaussianProcessLocal(MLRegModel):
     def __init__(self):
         self.gpmat = object()
     
-    def fit(self,train_mat):
-        Xtrain = np.vectorize(lambda x: x.local_feature_vector)(train_mat)
-        ytrain = np.vectorize(lambda x: x.true_label)(train_mat)
-        
-        ytrain_split = np.split(ytrain,3,axis=1)
-        ytrain_split_array = np.array(ytrain_split)
-        ytrain_mean = np.mean(ytrain_split_array,axis=0)
-        
-        row_count = Xtrain.shape[0]
-        self.gpmat = np.empty(shape=(row_count,),dtype=np.object_)
-        for row in range(row_count):
-            self.gpmat[row] = GaussianProcess(corr='cubic', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
-                             random_start=100)
-            self.gpmat[row].fit(Xtrain[row,:48].reshape(-1,1), ytrain_mean[row])
+    def fit(self,train_mat, load=False):
+        if load:
+            tempgp = cpk.load(open(DATA_DIR_PATH+'gaussianProcessLocal.pkl','rb'))
+            self.gpmat = tempgp.gpmat
+            self.rvCount = self.gpmat.shape[0]
+        else:
+            Xtrain = np.vectorize(lambda x: x.local_feature_vector)(train_mat)
+            ytrain = np.vectorize(lambda x: x.true_label)(train_mat)
+            
+            ytrain_split = np.split(ytrain,3,axis=1)
+            ytrain_split_array = np.array(ytrain_split)
+            ytrain_mean = np.mean(ytrain_split_array,axis=0)
+            
+            self.rvCount = Xtrain.shape[0]
+            self.gpmat = np.empty(shape=(self.rvCount,),dtype=np.object_)
+            for row in range(self.rvCount):
+                self.gpmat[row] = GaussianProcess(corr='cubic', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
+                                 random_start=100)
+                self.gpmat[row].fit(Xtrain[row,:48].reshape(-1,1), ytrain_mean[row])
     
-    def predict(self,test_mat):
+    def predict(self,test_mat, evid_mat = None):
+        if evid_mat is None:
+            evid_mat = np.zeros(shape=test_mat.shape,dtype=np.bool_)
         Xtest = np.vectorize(lambda x: x.local_feature_vector)(test_mat)
         ytest = np.vectorize(lambda x: x.true_label)(test_mat)
         
@@ -42,7 +51,10 @@ class GaussianProcessLocal(MLRegModel):
 
         # gp.predict(Xtest)
         for row in range(row_count):
-            ypred[row] = self.gpmat[row].predict(Xtest[row].reshape(-1,1))
+            if evid_mat[row]:
+                ypred[row] = ytest[row]
+            else:  
+                ypred[row] = self.gpmat[row].predict(Xtest[row].reshape(-1,1))
         return ypred
     
 #     def compute_mean_absolute_error(self):
@@ -60,22 +72,88 @@ class GaussianProcessLocal(MLRegModel):
     @staticmethod
     def run():
         start = time()
-        neighborhood_def = Neighborhood.all_others_current_time
+#         neighborhood_def = Neighborhood.all_others_current_time
+#         trainset,testset = convert_time_window_df_randomvar_hour(True,
+#                                                                 neighborhood_def)
         trainset,testset = convert_time_window_df_randomvar_hour(True,
-                                                                neighborhood_def)
+                            Neighborhood.itself_previous_others_current)
         
+        
+        testset = testset[:,35:47]
         gp = GaussianProcessLocal()
-        gp.fit(trainset)
+        gp.fit(trainset,load=True)
         
-        ypred = gp.predict(trainset)
+        evid_mat = np.zeros(shape=testset.shape,dtype=np.bool_)
         
-        print gp.compute_mean_squared_error(trainset, ypred)
-        print gp.compute_mean_absolute_error(trainset, ypred)
+        ypred = gp.predict(testset,evid_mat)
+        
+        print gp.compute_mean_squared_error(testset, ypred)
+        print gp.compute_mean_absolute_error(testset, ypred)
         
 #         print mean_absolute_error(ytest, ypred)
 #         print mean_squared_error(ytest, ypred)
         
         end = time()
         print 'Process ended, duration:', end - start
+    
+    @staticmethod    
+    def runActiveInference():
+        start = time()
+        randomState = np.random.RandomState(seed=0)
+        obsrate = .5
+        numTrials = 100
+        T = 12
         
-GaussianProcessLocal.run()
+        trainset,testset = convert_time_window_df_randomvar_hour(True,
+                            Neighborhood.itself_previous_others_current)
+        gp = GaussianProcessLocal()
+        gp.fit(trainset,load=True)
+        for obsrate in np.arange(0.0,0.7,0.1):
+            obsCount = obsrate * gp.rvCount
+            errResults = np.empty(shape=(numTrials,T,6))
+            predResults = np.empty(shape=(numTrials, gp.rvCount, T))
+            selectMat = np.empty(shape=(T,obsCount), dtype=np.int16)
+            print 'obsrate: {}'.format(obsrate)
+            print 'trial:'
+            for trial in range(numTrials):
+                print trial
+                evidMat = np.zeros(shape=(gp.rvCount,T),dtype=np.bool_)
+                print '\ttime:'
+                for t in range(T):
+                    print '\t',t
+                    select = np.arange(gp.rvCount)
+                    randomState.shuffle(select)
+                    selectMat[t] = select[:obsCount]
+                    evidMat[select[:obsCount],t] = True
+                    ypred = gp.predict(testset[:,t],evidMat[:,t])
+                    predResults[trial,:,t] = ypred
+                    errResults[trial,t,0] = gp.compute_mean_absolute_error(testset[:,t], ypred,
+                                        type_=0, evidence_mat=evidMat[:,t])
+                    errResults[trial,t,1] = gp.compute_mean_squared_error(testset[:,t], ypred,
+                                        type_=0,evidence_mat=evidMat[:,t])
+                    errResults[trial,t,2] = gp.compute_mean_absolute_error(testset[:,t], ypred,
+                                        type_=1, evidence_mat=evidMat[:,t])
+                    errResults[trial,t,3] = gp.compute_mean_squared_error(testset[:,t], ypred,
+                                        type_=1,evidence_mat=evidMat[:,t])
+                    errResults[trial,t,4] = gp.compute_mean_absolute_error(testset[:,t], ypred,
+                                        type_=2, evidence_mat=evidMat[:,t])
+                    errResults[trial,t,5] = gp.compute_mean_squared_error(testset[:,t], ypred,
+                                        type_=2,evidence_mat=evidMat[:,t])
+                np.savetxt(utils.properties.outputDirPath+'{}/evidences/'.format(obsrate) + 
+                           'evidMat_trial={}_obsrate={}.csv'.format(trial,obsrate),
+                           evidMat, delimiter=',')
+                np.savetxt(utils.properties.outputDirPath+'{}/predictions/'.format(obsrate) +
+                    'predResults_activeInf_gaussianProcess_T={}_obsRate={}_{}_trial={}.csv'.
+                    format(T,obsrate, utils.properties.timeStamp,trial),
+                    predResults[trial], delimiter=',')
+                np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
+                    'result_activeInf_gaussianProcess_T={}_obsRate={}_{}_trial={}.csv'.
+                    format(T,obsrate, utils.properties.timeStamp,trial),
+                    errResults[trial], delimiter=',')
+            np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
+                'result_activeInf_gaussianProcess_T={}_obsRate={}_{}_trial={}.csv'.
+                format(T,obsrate, utils.properties.timeStamp,'mean'),
+                np.mean(errResults,axis=0), delimiter=',')
+        print 'End of process, duration: {} secs'.format(time() - start)
+
+GaussianProcessLocal.runActiveInference()
