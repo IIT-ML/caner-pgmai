@@ -20,6 +20,7 @@ from time import time
 from scipy.stats import norm
 import sys
 from collections import deque
+import os 
 
 def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):    
     sampleStorage = dict()
@@ -522,10 +523,18 @@ def testActiveInferenceGaussianDBNSlidingWindow():
         errResults = np.empty(shape=(numTrials,T,6))
         predResults = np.empty(shape=(numTrials, gdbn.rvCount, T))
 #         selectMat = np.empty(shape=(T,obsCount),dtype=np.int16)
+        evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
+        if not os.path.exists(evidencepath): os.makedirs(evidencepath)
+        predictionpath = utils.properties.outputDirPath + str(obsrate) + '/predictions/'
+        if not os.path.exists(predictionpath): os.makedirs(predictionpath)
+        errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
+        if not os.path.exists(errorpath): os.makedirs(errorpath)
         print 'trial:'
         for trial in range(numTrials):
-            rotDeq = deque(range(gdbn.rvCount))
             print trial
+            indices= range(gdbn.rvCount)
+            randomState.shuffle(indices)
+            rotDeq = deque(indices)
             evidMat = np.zeros(shape=(gdbn.rvCount,T),dtype=np.bool_)
             print '\ttime:'
             for t in range(T):
@@ -542,7 +551,7 @@ def testActiveInferenceGaussianDBNSlidingWindow():
                     testMat = testset[:,t+1-tWin:t+1]
                     curEvidMat = evidMat[:,t+1-tWin:t+1]
                 startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
-                Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=2000, burnInCount=1000,
+                Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=10, burnInCount=5,
                                       startupVals=startupVals)
                 predResults[trial,:,t] = Y_pred[:,-1]
  
@@ -559,14 +568,14 @@ def testActiveInferenceGaussianDBNSlidingWindow():
                 errResults[trial,t,5] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
                                         type_=2,evidence_mat=curEvidMat[:,-1])
 
-            np.savetxt(utils.properties.outputDirPath+'{}/evidences/'.format(obsrate) + 
+            np.savetxt(evidencepath + 
                     'evidMat_activeInf_gaussianDBN_T={}_trial={}_obsrate={}_{}.csv'.
                     format(T,trial,obsrate,utils.properties.timeStamp), evidMat, delimiter=',')
-            np.savetxt(utils.properties.outputDirPath+'{}/predictions/'.format(obsrate) +
+            np.savetxt(predictionpath + 
                     'predResults_activeInf_gaussianDBN_T={}_obsRate={}_{}_trial={}.csv'.
                     format(T,obsrate, utils.properties.timeStamp,trial),
                     predResults[trial], delimiter=',')
-            np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
+            np.savetxt(errorpath +
                 'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_{}_trial={}.csv'.
                 format(topology,tWin,T,obsrate, utils.properties.timeStamp,trial),
                 errResults[trial], delimiter=',')
