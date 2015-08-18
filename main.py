@@ -265,16 +265,16 @@ def apply_func_to_coords(coord_list, shape, func=None):
     return marked_mat
 
 # main_IRA()
-# main_regression()
+main_regression()
 
 # create_time_window_df_hour_feature(to_be_pickled=True)
 
 # twdf = cPickle.load(open('regressionDataDays2_3_4-5_6/time_window_df_hour_feature.pickle','rb'))
 # pass
 
-neighborhood_def = Neighborhood.all_others_current_time
-traindata,testdata = convert_time_window_df_randomvar_hour(True,neighborhood_def)
-pass
+# neighborhood_def = Neighborhood.all_others_current_time
+# traindata,testdata = convert_time_window_df_randomvar_hour(True,neighborhood_def)
+# pass
 
 #Old code:
 #                 Y_pred = icaModel.predict(train_set, maxiter=10)

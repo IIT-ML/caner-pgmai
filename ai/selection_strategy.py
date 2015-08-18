@@ -5,6 +5,7 @@ Created on Jan 8, 2015
 '''
 
 import numpy as np
+from collections import deque
 
 class RandomStrategy(object):
     def __init__(self, seed=1):
@@ -14,6 +15,27 @@ class RandomStrategy(object):
         permuted_pool = self.rgen.permutation(pool)
         permuted_pool = map(tuple, permuted_pool)
         return permuted_pool[:k],permuted_pool[k:]
+    
+class RandomStrategy2(object):
+    def __init__(self, pool, seed=1):
+        self.rgen = np.random.RandomState(seed)
+        self.pool = pool
+    
+    def choices(self, k):
+        self.rgen.shuffle(self.pool)
+        return self.pool[:k]
+
+class SlidingWindow(object):
+    def __init__(self, pool, seed=1):
+        self.rgen=np.random.RandomState(seed)
+        self.pool = pool
+        self.rgen.shuffle(self.pool)
+        self.rotationDeque = deque(self.pool)
+    
+    def choices(self, k):
+        selectees = list(self.rotationDeque)[:k]
+        self.rotationDeque.rotate(-k)
+        return selectees
 
 class UNCSampling(object):
     '''
@@ -48,4 +70,12 @@ class UNCSampling(object):
         for sensor in current_sensor_list:
             pass
         
+
+def testRandomSampling2():
+    pool = np.arange(50)
+    sstr = RandomStrategy2(pool,seed=1)
+    print sstr.choices(5)
+    print sstr.choices(5)
+    print sstr.choices(5)
     
+# testRandomSampling2()

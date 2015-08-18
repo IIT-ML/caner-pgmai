@@ -21,6 +21,7 @@ from scipy.stats import norm
 import sys
 from collections import deque
 import os 
+from ai.selection_strategy import RandomStrategy2, SlidingWindow
 
 def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):    
     sampleStorage = dict()
@@ -422,10 +423,9 @@ def testMH7():
 
 def testActiveInferenceGaussianDBN():
     start = time()
-    randomState = np.random.RandomState(seed=0)
     tWin = 6
 #     obsrate = .1
-    topology = 'mst'
+    topology = 'original'
     T = 12
     numTrials = 3
     
@@ -436,23 +436,28 @@ def testActiveInferenceGaussianDBN():
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
 #     T = Y_test_allT.shape[1]
     sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
-    for obsrate in np.arange(0.0,0.1,0.1):
+    for obsrate in np.arange(0.3,0.6,0.1):
         print 'obsrate: {}'.format(obsrate)
-        obsCount = obsrate * gdbn.rvCount
+        obsCount = int(obsrate * gdbn.rvCount)
         errResults = np.empty(shape=(numTrials,T,6))
         predResults = np.empty(shape=(numTrials, gdbn.rvCount, T))
-        selectMat = np.empty(shape=(T,obsCount),dtype=np.int16)
+        evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
+        if not os.path.exists(evidencepath): os.makedirs(evidencepath)
+        predictionpath = utils.properties.outputDirPath + str(obsrate) + '/predictions/'
+        if not os.path.exists(predictionpath): os.makedirs(predictionpath)
+        errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
+        if not os.path.exists(errorpath): os.makedirs(errorpath)
         print 'trial:'
         for trial in range(numTrials):
             print trial
             evidMat = np.zeros(shape=(gdbn.rvCount,T),dtype=np.bool_)
+#             selectionStrategy = RandomStrategy2(pool=gdbn.sortedids, seed=trial)
+            selectionStrategy = SlidingWindow(pool=gdbn.sortedids, seed=trial)
             print '\ttime:'
             for t in range(T):
                 print '\t',t
-                select = np.arange(gdbn.rvCount)
-                randomState.shuffle(select)
-                selectMat[t] = select[:obsCount]
-                evidMat[select[:obsCount],t] = True
+                selectees = selectionStrategy.choices(obsCount)
+                evidMat[selectees,t] = True
                 if t < tWin:
                     Y_test = Y_test_allT[:,:t+1]
                     testMat = testset[:,:t+1]
@@ -462,10 +467,9 @@ def testActiveInferenceGaussianDBN():
                     testMat = testset[:,t+1-tWin:t+1]
                     curEvidMat = evidMat[:,t+1-tWin:t+1]
                 startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
-                Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=2000, burnInCount=1000,
+                Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=10, burnInCount=5,
                                       startupVals=startupVals)
                 predResults[trial,:,t] = Y_pred[:,-1]
- 
                 errResults[trial,t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],
                                         type_=0, evidence_mat=curEvidMat[:,-1])
                 errResults[trial,t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
@@ -478,19 +482,18 @@ def testActiveInferenceGaussianDBN():
                                         type_=2, evidence_mat=curEvidMat[:,-1])
                 errResults[trial,t,5] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
                                         type_=2,evidence_mat=curEvidMat[:,-1])
-
-            np.savetxt(utils.properties.outputDirPath+'{}/evidences/'.format(obsrate) + 
+            np.savetxt(evidencepath + 
                     'evidMat_activeInf_gaussianDBN_T={}_trial={}_obsrate={}_{}.csv'.
                     format(T,trial,obsrate,utils.properties.timeStamp), evidMat, delimiter=',')
-            np.savetxt(utils.properties.outputDirPath+'{}/predictions/'.format(obsrate) +
+            np.savetxt(predictionpath +
                     'predResults_activeInf_gaussianDBN_T={}_obsRate={}_{}_trial={}.csv'.
                     format(T,obsrate, utils.properties.timeStamp,trial),
                     predResults[trial], delimiter=',')
-            np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
+            np.savetxt(errorpath +
                 'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_{}_trial={}.csv'.
                 format(topology,tWin,T,obsrate, utils.properties.timeStamp,trial),
                 errResults[trial], delimiter=',')
-        np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
+        np.savetxt(errorpath +
             'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_{}_trial={}.csv'.
             format(topology,tWin,T,obsrate, utils.properties.timeStamp,'mean'),
             np.mean(errResults,axis=0), delimiter=',')
@@ -500,6 +503,7 @@ def testActiveInferenceGaussianDBN():
 #                                'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,
 #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
+
 
 def testActiveInferenceGaussianDBNSlidingWindow():
     start = time()
@@ -590,7 +594,7 @@ def testActiveInferenceGaussianDBNSlidingWindow():
 #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
-testActiveInferenceGaussianDBNSlidingWindow()
+testActiveInferenceGaussianDBN()
 
 def testMH5():
     start = time()
