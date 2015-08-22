@@ -505,6 +505,193 @@ def testActiveInferenceGaussianDBN():
     print 'End of process, duration: {} secs'.format(time() - start)
 
 
+def testActiveInferenceGaussianDBNCeilingPerformanceWithTrials():
+    start = time()
+    tWin = 2
+#     obsrate = .1
+    topology = 'mst'
+    T = 12
+    numTrials = 1
+    sampleSize = 6
+    burnInCount = 3
+    
+    trainset,testset = convert_time_window_df_randomvar_hour(True,
+                            Neighborhood.itself_previous_others_current)
+    gdbn = GaussianDBN()
+    gdbn.fit(trainset, topology=topology)
+    Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
+#     T = Y_test_allT.shape[1]
+    sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
+
+    errResults = np.empty(shape=(numTrials,T,6))
+    predResults = np.empty(shape=(numTrials, gdbn.rvCount, T))
+    predictionpath = utils.properties.outputDirPath + '/predictions/'
+    if not os.path.exists(predictionpath): os.makedirs(predictionpath)
+    errorpath = utils.properties.outputDirPath + '/errors/'
+    if not os.path.exists(errorpath): os.makedirs(errorpath)
+    print 'trial:'
+    for trial in range(numTrials):
+        print trial
+        print '\ttime:'
+        #for t == 0
+        t = 0
+        print '\t',t
+        Y_pred = np.empty(shape=(gdbn.rvCount,T),dtype=np.float64)
+        Y_test = Y_test_allT[:,t].reshape(-1,1)
+        testMat = testset[:,t].reshape(-1,1)
+        evidMat = np.ones(shape=(gdbn.rvCount,1),dtype=np.bool_)
+        for sensor in gdbn.sortedids:
+            evidMat[sensor,t] = False
+            curEvidMat = evidMat[:,t].reshape(-1,1)
+            startupVals = sensormeans.reshape(-1,1)
+            tempPred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=sampleSize,
+                                    burnInCount=burnInCount, startupVals=startupVals)
+            evidMat[sensor,t] = True
+            Y_pred[sensor,t] = tempPred[sensor,t]
+        evidMat = np.zeros(shape=(gdbn.rvCount,1),dtype=np.bool_)
+        errResults[trial,t,0] = gdbn.compute_mean_absolute_error(testMat[:,t], Y_pred[:,t],
+                                    type_=0, evidence_mat=evidMat[:,t])
+        errResults[trial,t,1] = gdbn.compute_mean_squared_error(testMat[:,t], Y_pred[:,t],
+                                    type_=0, evidence_mat=evidMat[:,t])
+        errResults[trial,t,2] = gdbn.compute_mean_absolute_error(testMat[:,t], Y_pred[:,t],
+                                    type_=1, evidence_mat=evidMat[:,t])
+        errResults[trial,t,3] = gdbn.compute_mean_squared_error(testMat[:,t], Y_pred[:,t],
+                                    type_=1, evidence_mat=evidMat[:,t])
+        errResults[trial,t,4] = gdbn.compute_mean_absolute_error(testMat[:,t], Y_pred[:,t],
+                                    type_=2, evidence_mat=evidMat[:,t])
+        errResults[trial,t,5] = gdbn.compute_mean_squared_error(testMat[:,t], Y_pred[:,t],
+                                    type_=2, evidence_mat=evidMat[:,t])
+        for t in range(1,T):
+            print '\t',t
+            Y_test = Y_test_allT[:,t-1:t+1]
+            testMat = testset[:,t-1:t+1]
+            evidMat = np.ones(shape=(gdbn.rvCount,tWin),dtype=np.bool_)
+            for sensor in gdbn.sortedids:
+                evidMat[sensor,1] = False
+                curEvidMat = evidMat
+                startupVals = np.repeat(sensormeans.reshape(-1,1),tWin,axis=1)
+                tempPred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=sampleSize,
+                                        burnInCount=burnInCount, startupVals=startupVals)
+                evidMat[sensor,1] = True
+                Y_pred[sensor,t] = tempPred[sensor,1]
+            evidMat = np.zeros(shape=(gdbn.rvCount,tWin),dtype=np.bool_)
+            errResults[trial,t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,t],
+                                    type_=0, evidence_mat=evidMat[:,-1])
+            errResults[trial,t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,t],
+                                    type_=0,evidence_mat=evidMat[:,-1])
+            errResults[trial,t,2] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,t],
+                                    type_=1, evidence_mat=evidMat[:,-1])
+            errResults[trial,t,3] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,t],
+                                    type_=1,evidence_mat=evidMat[:,-1])
+            errResults[trial,t,4] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,t],
+                                    type_=2, evidence_mat=evidMat[:,-1])
+            errResults[trial,t,5] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,t],
+                                    type_=2,evidence_mat=evidMat[:,-1])
+        predResults[trial] = Y_pred
+        np.savetxt(predictionpath +
+                'predResults_activeInf_gaussianDBN_T={}_{}_trial={}.csv'.
+                format(T, utils.properties.timeStamp,trial),
+                predResults[trial], delimiter=',')
+        np.savetxt(errorpath +
+            'result_activeInf_gaussianDBN_topology={}_window={}_T={}_{}_trial={}.csv'.
+            format(topology,tWin,T, utils.properties.timeStamp,trial),
+            errResults[trial], delimiter=',')
+    np.savetxt(errorpath +
+        'result_activeInf_gaussianDBN_topology={}_window={}_T={}_{}_trial={}.csv'.
+        format(topology,tWin,T, utils.properties.timeStamp,'mean'),
+        np.mean(errResults,axis=0), delimiter=',')
+#     np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
+#             observationRate), selectMat, delimiter=',')
+#     cPickle.dump(errResults, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+
+#                                'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,
+#                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
+    print 'End of process, duration: {} secs'.format(time() - start)
+
+def testActiveInferenceGaussianDBNCeilingPerformance():
+    start = time()
+    tWin = 2
+#     obsrate = .1
+    topology = 'mst'
+    T = 12
+    sampleSize = 2000
+    burnInCount = 1000
+    
+    trainset,testset = convert_time_window_df_randomvar_hour(True,
+                            Neighborhood.itself_previous_others_current)
+    gdbn = GaussianDBN()
+    gdbn.fit(trainset, topology=topology)
+    Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
+#     T = Y_test_allT.shape[1]
+    sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
+
+    errResults = np.empty((T,6))
+    predictionpath = utils.properties.outputDirPath + '/predictions/'
+    if not os.path.exists(predictionpath): os.makedirs(predictionpath)
+    errorpath = utils.properties.outputDirPath + '/errors/'
+    if not os.path.exists(errorpath): os.makedirs(errorpath)
+    print 'time:'
+    #for t == 0
+    t = 0
+    print t
+    Y_pred = np.empty(shape=(gdbn.rvCount,T),dtype=np.float64)
+    Y_test = Y_test_allT[:,t].reshape(-1,1)
+    testMat = testset[:,t].reshape(-1,1)
+    evidMat = np.ones(shape=(gdbn.rvCount,1),dtype=np.bool_)
+    startupVals = sensormeans.reshape(-1,1)
+    for sensor in gdbn.sortedids:
+        evidMat[sensor,t] = False
+        tempPred = gdbn.predict(Y_test,evidMat, 0, t, sampleSize=sampleSize,
+                                burnInCount=burnInCount, startupVals=startupVals)
+        evidMat[sensor,t] = True
+        Y_pred[sensor,t] = tempPred[sensor,t]
+    evidMat = np.zeros(shape=(gdbn.rvCount,1),dtype=np.bool_)
+    errResults[t,0] = gdbn.compute_mean_absolute_error(testMat[:,t], Y_pred[:,t],
+                                type_=0, evidence_mat=evidMat[:,t])
+    errResults[t,1] = gdbn.compute_mean_squared_error(testMat[:,t], Y_pred[:,t],
+                                type_=0, evidence_mat=evidMat[:,t])
+    errResults[t,2] = gdbn.compute_mean_absolute_error(testMat[:,t], Y_pred[:,t],
+                                type_=1, evidence_mat=evidMat[:,t])
+    errResults[t,3] = gdbn.compute_mean_squared_error(testMat[:,t], Y_pred[:,t],
+                                type_=1, evidence_mat=evidMat[:,t])
+    errResults[t,4] = gdbn.compute_mean_absolute_error(testMat[:,t], Y_pred[:,t],
+                                type_=2, evidence_mat=evidMat[:,t])
+    errResults[t,5] = gdbn.compute_mean_squared_error(testMat[:,t], Y_pred[:,t],
+                                type_=2, evidence_mat=evidMat[:,t])
+    startupVals = np.repeat(sensormeans.reshape(-1,1),tWin,axis=1)
+    for t in range(1,T):
+        print t
+        Y_test = Y_test_allT[:,t-1:t+1]
+        testMat = testset[:,t-1:t+1]
+        evidMat = np.ones(shape=(gdbn.rvCount,tWin),dtype=np.bool_)
+        for sensor in gdbn.sortedids:
+            evidMat[sensor,1] = False
+            tempPred = gdbn.predict(Y_test,evidMat, 0, t, sampleSize=sampleSize,
+                                    burnInCount=burnInCount, startupVals=startupVals)
+            evidMat[sensor,1] = True
+            Y_pred[sensor,t] = tempPred[sensor,1]
+        evidMat = np.zeros(shape=(gdbn.rvCount,tWin),dtype=np.bool_)
+        errResults[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,t],
+                                type_=0, evidence_mat=evidMat[:,-1])
+        errResults[t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,t],
+                                type_=0,evidence_mat=evidMat[:,-1])
+        errResults[t,2] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,t],
+                                type_=1, evidence_mat=evidMat[:,-1])
+        errResults[t,3] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,t],
+                                type_=1,evidence_mat=evidMat[:,-1])
+        errResults[t,4] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,t],
+                                type_=2, evidence_mat=evidMat[:,-1])
+        errResults[t,5] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,t],
+                                type_=2,evidence_mat=evidMat[:,-1])
+    np.savetxt(predictionpath +
+            'predResults_activeInf_gaussianDBN_T={}_{}.csv'.
+            format(T, utils.properties.timeStamp),
+            Y_pred, delimiter=',')
+    np.savetxt(errorpath +
+        'result_activeInf_gaussianDBN_topology={}_window={}_T={}_{}.csv'.
+        format(topology,tWin,T, utils.properties.timeStamp),
+        errResults, delimiter=',')
+    print 'End of process, duration: {} secs'.format(time() - start)
+
 def testActiveInferenceGaussianDBNSlidingWindow():
     start = time()
     randomState = np.random.RandomState(seed=0)
@@ -594,7 +781,7 @@ def testActiveInferenceGaussianDBNSlidingWindow():
 #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
-testActiveInferenceGaussianDBN()
+testActiveInferenceGaussianDBNCeilingPerformance()
 
 def testMH5():
     start = time()
