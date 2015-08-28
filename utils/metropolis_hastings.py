@@ -190,18 +190,23 @@ class MetropolisHastings:
     def sampleTemporal(self, rvids, parentDict, cpdParams, startupVals,
                                            evidMat=None, testMat=None, sampleSize=100000,
                                            burnInCount=1000, samplingPeriod=2, proposalDist='uniform',
-                                           width = 5):
-        
-        
+                                           width = None):
+
+        tuneWindow = sampleSize/50
+        rejRateStar = 0.5
+        epsilon = 0.05
+
+        continueWidthSearch = True
+
         self.rvids = rvids
         if proposalDist=='uniform':
             proposalDist = self.proposeFromUniform
         elif proposalDist=='normal':
             proposalDist = self.proposeFromNormal
-            
+
         if type(rvids) is list:
             rvids = np.array(rvids)
-        
+
         if evidMat is not None:
             if testMat is None:
                 raise NameError('Missing parameter: testvec; test vector is not provided.')
@@ -211,14 +216,13 @@ class MetropolisHastings:
             evidMat = np.zeros(shape=rvids.shape,dtype=bool)
         if testMat is None:
             testMat = np.zeros(shape=rvids.shape,dtype=bool)
-        
+
         self.rvCount = int(startupVals.shape[0])
-        if type(width) is not list: 
-            if type(width) is int or type(width) is float or type(width) is np.float64:
-                width = [width] * self.rvCount
-            else:
-                raise TypeError('Type of \'width\' is not recognized') 
         self.T = startupVals.shape[1]
+        if width is None:
+            width = np.ones(shape=(rvids.shape[0],self.T)) * 5.
+        elif type(width) is int:
+            width = np.ones(shape=(rvids.shape[0],self.T)) * width
         self.localProbs = np.zeros((self.rvCount,self.T),dtype=np.float64)
         self.localPrimeProbs = np.zeros((self.rvCount,self.T),dtype=np.float64)
         childDict = self.getChildDict(parentDict)
@@ -229,58 +233,74 @@ class MetropolisHastings:
         data = list()
         accList = np.zeros((sampleSize,rvids.shape[0],T))
         propVals = np.zeros((sampleSize,rvids.shape[0],T))
-        accCount = np.zeros((rvids.shape[0],T))
+        stopFlag = evidMat.copy()
+        count = 0
+        widthList = list()
+        widthList.append(width)
+        rejRate = np.zeros(shape=(burnInCount/tuneWindow,rvids.shape[0],T))
+        accTrack = np.zeros((sampleSize,rvids.shape[0],T), dtype=np.bool_)
         for i in xrange(sampleSize):
-#             print i
-    #         print '\t0'
+            #             print i
+            #         print '\t0'
             for rvid in rvids[~evidMat[rvids,0]]:
-    #             newVal = proposeFromUniform(currentVals[rvid,0],width)
-    #             newVal = proposeFromNormal(currentVals[rvid,0],width)
-                newVal = proposalDist(currentVals[rvid,0],width[rvid])
+                newVal = proposalDist(currentVals[rvid,0],width[rvid,0])
                 propVals[i,rvid,0] = newVal
                 acceptProb = self.acceptInitial(x_new = newVal, rvid=rvid,
-                                            parentDict=parentDict, childDict=childDict, 
-                                            currentVals=currentVals, cpdParams=cpdParams)
-#                 acceptProb2 = self.acceptInitial_backup(x_new = newVal, rvid=rvid,
-#                                             parentDict=parentDict, childDict=childDict, 
-#                                             currentVals=currentVals, cpdParams=cpdParams)
+                                                parentDict=parentDict, childDict=childDict,
+                                                currentVals=currentVals, cpdParams=cpdParams)
                 accList[i,rvid,0] = acceptProb
                 if acceptProb > self.rs.rand():
-                    accCount[rvid,0] += 1
                     currentVals[rvid,0] = newVal
                     self.localProbs[rvid,0] = self.localPrimeProbs[rvid,0]
+                    accTrack[i,rvid,0] = True
                     for child in childDict[rvid]:
                         if child < self.rvCount:
                             self.localProbs[child,0] = self.localPrimeProbs[child,0]
                         elif T > 1:
                             self.localProbs[child-self.rvCount,1] = self.localPrimeProbs[child-self.rvCount,1]
             for t in range(1,T):
-    #             print '\t',t
+                #             print '\t',t
                 for rvid in rvids[~evidMat[rvids,t]]:
-    #                 newVal = proposeFromUniform(currentVals[rvid,t],width)
-    #                 newVal = proposeFromNormal(currentVals[rvid,t],width)
-                    newVal = proposalDist(currentVals[rvid,t],width[rvid])
+                    newVal = proposalDist(currentVals[rvid,t],width[rvid,0])
                     propVals[i,rvid,t] = newVal
                     acceptProb = self.acceptTemporal(x_new = newVal, rvid=rvid,
-                                                parentDict=parentDict, childDict=childDict, 
-                                                currentVals=currentVals, t=t, cpdParams=cpdParams)
-#                     acceptProb2 = self.acceptTemporal_backup(x_new = newVal, rvid=rvid,
-#                                                 parentDict=parentDict, childDict=childDict, 
-#                                                 currentVals=currentVals, t=t, cpdParams=cpdParams)
+                                                     parentDict=parentDict, childDict=childDict,
+                                                     currentVals=currentVals, t=t, cpdParams=cpdParams)
                     accList[i,rvid,t] = acceptProb
                     if acceptProb > self.rs.rand():
                         currentVals[rvid,t] = newVal
                         self.localProbs[rvid,t] = self.localPrimeProbs[rvid,t]
+                        accTrack[i,rvid,t] = True
                         for child in childDict[rvid]:
                             if child < self.rvCount:
                                 self.localProbs[child,t] = self.localPrimeProbs[child,t]
                             elif t < T-1:
                                 self.localProbs[child-self.rvCount,t+1] = self.localPrimeProbs[child-self.rvCount,t+1]
-                        accCount[rvid,t] += 1
-#             if i>burnInCount: 
-#                 if i % samplingPeriod:
-            data.append(currentVals.copy())
-        return data, accList, propVals, accCount
+            if i < burnInCount and continueWidthSearch:
+                if count == tuneWindow:
+                    rejRate[i/tuneWindow] = 1 - np.sum(accTrack[i-count:i], axis=0)/float(tuneWindow)
+                    curWidth = widthList[-1].copy()
+                    for t in range(T):
+                        for rvid in rvids:
+                            if not stopFlag[rvid,t] and \
+                                    (rejRate[i/tuneWindow,rvid,t] < rejRateStar - epsilon or
+                                             rejRate[i/tuneWindow,rvid,t] > rejRateStar + epsilon):
+                                curWidth[rvid,t] = curWidth[rvid,t] / rejRate[i/tuneWindow,rvid,t] * \
+                                                   rejRateStar
+                            else:
+                                stopFlag[rvid,t] = True
+                    widthList.append(curWidth)
+                    count = 1
+                    if np.all(stopFlag):
+                        continueWidthSearch = False
+                    else:
+                        width = curWidth
+                else:
+                    count += 1
+            else:
+                if i % samplingPeriod:
+                    data.append(currentVals.copy())
+        return data, accList, propVals, accTrack
     
     def initializeLocalProb(self,parentDict,cpdParams,startupVals):
         for rvid in self.rvids:
