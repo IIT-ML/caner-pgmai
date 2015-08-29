@@ -509,7 +509,7 @@ def testActiveInferenceGaussianDBNParallel():
     start = time()
     tWin = 6
 #     obsrate = .1
-    topology = 'original'
+    topology = 'mst'
     T = 12
     numTrials = 3
 

@@ -188,16 +188,11 @@ class MetropolisHastings:
         return distVal/distVal2
     
     def sampleTemporal(self, rvids, parentDict, cpdParams, startupVals,
-                                           evidMat=None, testMat=None, sampleSize=100000,
-                                           burnInCount=1000, samplingPeriod=2, proposalDist='uniform',
-                                           width = None):
-
-        tuneWindow = sampleSize/50
-        rejRateStar = 0.5
-        epsilon = 0.05
+                       evidMat=None, testMat=None, sampleSize=100000,
+                       burnInCount=1000, samplingPeriod=2, proposalDist='uniform',
+                       width=None, rejRateStar=0.5, epsilon=0.05, tuneWindow=40):
 
         continueWidthSearch = True
-
         self.rvids = rvids
         if proposalDist=='uniform':
             proposalDist = self.proposeFromUniform
@@ -221,7 +216,7 @@ class MetropolisHastings:
         self.T = startupVals.shape[1]
         if width is None:
             width = np.ones(shape=(rvids.shape[0],self.T)) * 5.
-        elif type(width) is int:
+        elif type(width) is int or type(width) is float:
             width = np.ones(shape=(rvids.shape[0],self.T)) * width
         self.localProbs = np.zeros((self.rvCount,self.T),dtype=np.float64)
         self.localPrimeProbs = np.zeros((self.rvCount,self.T),dtype=np.float64)
@@ -240,8 +235,8 @@ class MetropolisHastings:
         rejRate = np.zeros(shape=(burnInCount/tuneWindow,rvids.shape[0],T))
         accTrack = np.zeros((sampleSize,rvids.shape[0],T), dtype=np.bool_)
         for i in xrange(sampleSize):
-            #             print i
-            #         print '\t0'
+            # print i
+            # print '\t0'
             for rvid in rvids[~evidMat[rvids,0]]:
                 newVal = proposalDist(currentVals[rvid,0],width[rvid,0])
                 propVals[i,rvid,0] = newVal
@@ -259,7 +254,7 @@ class MetropolisHastings:
                         elif T > 1:
                             self.localProbs[child-self.rvCount,1] = self.localPrimeProbs[child-self.rvCount,1]
             for t in range(1,T):
-                #             print '\t',t
+                # print '\t',t
                 for rvid in rvids[~evidMat[rvids,t]]:
                     newVal = proposalDist(currentVals[rvid,t],width[rvid,0])
                     propVals[i,rvid,t] = newVal
@@ -276,16 +271,17 @@ class MetropolisHastings:
                                 self.localProbs[child,t] = self.localPrimeProbs[child,t]
                             elif t < T-1:
                                 self.localProbs[child-self.rvCount,t+1] = self.localPrimeProbs[child-self.rvCount,t+1]
+            data.append(currentVals.copy())
             if i < burnInCount and continueWidthSearch:
                 if count == tuneWindow:
-                    rejRate[i/tuneWindow] = 1 - np.sum(accTrack[i-count:i], axis=0)/float(tuneWindow)
+                    rejRate[i/tuneWindow-1] = 1 - np.sum(accTrack[i-count:i], axis=0)/float(tuneWindow)
                     curWidth = widthList[-1].copy()
                     for t in range(T):
                         for rvid in rvids:
                             if not stopFlag[rvid,t] and \
-                                    (rejRate[i/tuneWindow,rvid,t] < rejRateStar - epsilon or
-                                             rejRate[i/tuneWindow,rvid,t] > rejRateStar + epsilon):
-                                curWidth[rvid,t] = curWidth[rvid,t] / rejRate[i/tuneWindow,rvid,t] * \
+                                    (rejRate[i/tuneWindow-1,rvid,t] < rejRateStar - epsilon or
+                                             rejRate[i/tuneWindow-1,rvid,t] > rejRateStar + epsilon):
+                                curWidth[rvid,t] = curWidth[rvid,t] / rejRate[i/tuneWindow-1,rvid,t] * \
                                                    rejRateStar
                             else:
                                 stopFlag[rvid,t] = True
@@ -293,14 +289,14 @@ class MetropolisHastings:
                     count = 1
                     if np.all(stopFlag):
                         continueWidthSearch = False
+                        if i < burnInCount:
+                            burnInCount = i
                     else:
                         width = curWidth
                 else:
                     count += 1
-            else:
-                if i % samplingPeriod:
-                    data.append(currentVals.copy())
-        return data, accList, propVals, accTrack
+
+        return data, accList, propVals, accTrack, burnInCount
     
     def initializeLocalProb(self,parentDict,cpdParams,startupVals):
         for rvid in self.rvids:

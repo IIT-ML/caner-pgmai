@@ -308,7 +308,7 @@ class GaussianDBN(MLRegModel):
 #              0.6,1.5,1.4,1.5,0.5,0.5]
         width = 5.0
         metropolisHastings = MetropolisHastings()
-        (data,accList,propVals,accCount) = metropolisHastings.sampleTemporal(self.sortedids,
+        (data,accList,propVals,accCount,burnInCount) = metropolisHastings.sampleTemporal(self.sortedids,
                                             self.parentDict, self.cpdParams, startupVals, evidMat,
                                             testMat, sampleSize=sampleSize,
                                             burnInCount=burnInCount, samplingPeriod=samplingPeriod,
