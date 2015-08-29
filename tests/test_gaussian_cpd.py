@@ -508,110 +508,58 @@ def testActiveInferenceGaussianDBN():
 def testActiveInferenceGaussianDBNParallel():
     start = time()
     tWin = 6
-#     obsrate = .1
+    #     obsrate = .1
     topology = 'mst'
     T = 12
     numTrials = 3
 
     trainset,testset = convert_time_window_df_randomvar_hour(True,
-                            Neighborhood.itself_previous_others_current)
+                                                             Neighborhood.itself_previous_others_current)
     gdbn = GaussianDBN()
     gdbn.fit(trainset, topology=topology)
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
-#     T = Y_test_allT.shape[1]
     sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
+    parameterList = list()
     for obsrate in np.arange(0.0,0.7,0.1):
-#     for obsrate in [0.1,0.4]:
         print 'obsrate: {}'.format(obsrate)
         obsCount = int(obsrate * gdbn.rvCount)
         errResults = np.empty(shape=(numTrials,T,6))
         predResults = np.empty(shape=(numTrials, gdbn.rvCount, T))
         evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
-        if not os.path.exists(evidencepath): os.makedirs(evidencepath)
+        if not os.path.exists(evidencepath):
+            os.makedirs(evidencepath)
         predictionpath = utils.properties.outputDirPath + str(obsrate) + '/predictions/'
-        if not os.path.exists(predictionpath): os.makedirs(predictionpath)
+        if not os.path.exists(predictionpath):
+            os.makedirs(predictionpath)
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
-        if not os.path.exists(errorpath): os.makedirs(errorpath)
+        if not os.path.exists(errorpath):
+            os.makedirs(errorpath)
         print 'trial:'
         selectionStrategyClass = RandomStrategy2
         sampleSize = 2000
         burnInCount = 1000
-
-#         pool = mp.Pool()
-#         for trial in range(numTrials):
-#             pool.apply_async(trialFunc,args=(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset, Y_test_allT,
-#                 sampleSize, burnInCount, topology, predResults, errResults, obsrate, obsCount,
-#                 evidencepath, predictionpath, errorpath))
-#         pool.join()
-
-        parameterList = list()
         for trial in range(numTrials):
             parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
-                testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
-                evidencepath, predictionpath, errorpath))
-        pool = mp.Pool()
-        pool.map(trialFuncStar, parameterList)
+                                  testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
+                                  evidencepath, predictionpath, errorpath))
+    pool = mp.Pool(processes=18)
+    pool.map(trialFuncStar, parameterList)
 
-#             trialFuncStar((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset, Y_test_allT,
-#                 sampleSize, burnInCount, topology, predResults, errResults, obsrate, obsCount,
-#                 evidencepath, predictionpath, errorpath))
-#             print trial
-#             evidMat = np.zeros(shape=(gdbn.rvCount,T),dtype=np.bool_)
-# #             selectionStrategy = RandomStrategy2(pool=gdbn.sortedids, seed=trial)
-#             selectionStrategy = SlidingWindow(pool=gdbn.sortedids, seed=trial)
-#             print '\ttime:'
-#             for t in range(T):
-#                 print '\t',t
-#                 selectees = selectionStrategy.choices(obsCount)
-#                 evidMat[selectees,t] = True
-#                 if t < tWin:
-#                     Y_test = Y_test_allT[:,:t+1]
-#                     testMat = testset[:,:t+1]
-#                     curEvidMat = evidMat[:,:t+1]
-#                 else:
-#                     Y_test = Y_test_allT[:,t+1-tWin:t+1]
-#                     testMat = testset[:,t+1-tWin:t+1]
-#                     curEvidMat = evidMat[:,t+1-tWin:t+1]
-#                 startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
-#                 Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=10, burnInCount=5,
-#                                       startupVals=startupVals)
-#                 predResults[trial,:,t] = Y_pred[:,-1]
-#                 errResults[trial,t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],
-#                                         type_=0, evidence_mat=curEvidMat[:,-1])
-#                 errResults[trial,t,1] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
-#                                         type_=0,evidence_mat=curEvidMat[:,-1])
-#                 errResults[trial,t,2] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],
-#                                         type_=1, evidence_mat=curEvidMat[:,-1])
-#                 errResults[trial,t,3] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
-#                                         type_=1,evidence_mat=curEvidMat[:,-1])
-#                 errResults[trial,t,4] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],
-#                                         type_=2, evidence_mat=curEvidMat[:,-1])
-#                 errResults[trial,t,5] = gdbn.compute_mean_squared_error(testMat[:,-1], Y_pred[:,-1],
-#                                         type_=2,evidence_mat=curEvidMat[:,-1])
-#             np.savetxt(evidencepath +
-#                     'evidMat_activeInf_gaussianDBN_T={}_trial={}_obsrate={}_{}.csv'.
-#                     format(T,trial,obsrate,utils.properties.timeStamp), evidMat, delimiter=',')
-#             np.savetxt(predictionpath +
-#                     'predResults_activeInf_gaussianDBN_T={}_obsRate={}_{}_trial={}.csv'.
-#                     format(T,obsrate, utils.properties.timeStamp,trial),
-#                     predResults[trial], delimiter=',')
-#             np.savetxt(errorpath +
-#                 'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_{}_trial={}.csv'.
-#                 format(topology,tWin,T,obsrate, utils.properties.timeStamp,trial),
-#                 errResults[trial], delimiter=',')
+    for obsrate in np.arange(0.0,0.7,0.1):
         for trial in range(numTrials):
             errResults[trial] = np.loadtxt(errorpath +
-            'mae_activeInfo_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-            format(topology,tWin,T,obsrate, trial), delimiter=',')
+                                           'mae_activeInfo_gaussianDBN_topology=' +
+                                           '{}_window={}_T={}_obsRate={}_trial={}.csv'.
+                                           format(topology,tWin,T,obsrate, trial), delimiter=',')
         np.savetxt(errorpath +
-            'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-            format(topology,tWin,T,obsrate, 'mean'),
-            np.mean(errResults,axis=0), delimiter=',')
-#     np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
-#             observationRate), selectMat, delimiter=',')
-#     cPickle.dump(errResults, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+
-#                                'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,
-#                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
+                   'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                   format(topology,tWin,T,obsrate, 'mean'),
+                   np.mean(errResults,axis=0), delimiter=',')
+    #     np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
+    #             observationRate), selectMat, delimiter=',')
+    #     cPickle.dump(errResults, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+
+    #                                'topology={}_window={}_T={}_obsRate={}_{}.pkl'.format(topology,tWin,
+    #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
 def trialFuncStar(allParams):
