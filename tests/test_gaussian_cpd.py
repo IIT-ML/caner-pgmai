@@ -508,10 +508,9 @@ def testActiveInferenceGaussianDBN():
 def testActiveInferenceGaussianDBNParallel():
     start = time()
     tWin = 6
-    #     obsrate = .1
-    topology = 'mst'
-    T = 12
-    numTrials = 3
+    topology = utils.properties.dbn_topology
+    T = utils.properties.timeSpan
+    numTrials = utils.properties.numTrials
 
     trainset,testset = convert_time_window_df_randomvar_hour(True,
                                                              Neighborhood.itself_previous_others_current)
@@ -520,7 +519,9 @@ def testActiveInferenceGaussianDBNParallel():
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
     sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl','rb'))
     parameterList = list()
-    for obsrate in np.arange(0.0,0.7,0.1):
+    sampleSize = utils.properties.mh_sampleSize
+    burnInCount = utils.properties.mh_burnInCount
+    for obsrate in utils.properties.obsrateList:
         print 'obsrate: {}'.format(obsrate)
         obsCount = int(obsrate * gdbn.rvCount)
         errResults = np.empty(shape=(numTrials,T,6))
@@ -536,16 +537,15 @@ def testActiveInferenceGaussianDBNParallel():
             os.makedirs(errorpath)
         print 'trial:'
         selectionStrategyClass = RandomStrategy2
-        sampleSize = 2000
-        burnInCount = 1000
         for trial in range(numTrials):
             parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
                                   evidencepath, predictionpath, errorpath))
-    pool = mp.Pool(processes=18)
+    pool = mp.Pool(processes=utils.properties.numParallelThreads)
     pool.map(trialFuncStar, parameterList)
 
-    for obsrate in np.arange(0.0,0.7,0.1):
+    for obsrate in utils.properties.obsrateList:
+        errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
         for trial in range(numTrials):
             errResults[trial] = np.loadtxt(errorpath +
                                            'mae_activeInfo_gaussianDBN_topology=' +
@@ -585,7 +585,7 @@ def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset
             testMat = testset[:,t+1-tWin:t+1]
             curEvidMat = evidMat[:,t+1-tWin:t+1]
         startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
-        Y_pred = gdbn.predict(Y_test,curEvidMat, trial, t, sampleSize=sampleSize,
+        Y_pred = gdbn.predict(Y_test,curEvidMat, obsrate, trial, t, sampleSize=sampleSize,
                                  burnInCount=burnInCount, startupVals=startupVals)
         predResults[:,t] = Y_pred[:,-1]
         errResults[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],

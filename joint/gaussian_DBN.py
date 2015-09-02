@@ -53,14 +53,14 @@ class GaussianDBN(MLRegModel):
         infomat = np.linalg.inv(cova)
         absround = np.absolute(np.around(infomat,6))
         self.topology = topology
-        if topology == 'original':
+        if topology == 'imt':
             self.setParentsByThreshold(absround)
         elif topology == 'mst':
             self.setParentsByMST(absround)
         elif topology == 'mst_enriched':
             self.setParentsByMST_enriched(absround)
         else:
-            raise ValueError('topology should be either original, or mst or mst_enriched.')
+            raise ValueError('topology should be either imt, or mst or mst_enriched.')
         self.cpdParams = np.empty(shape=mea.shape + (2,), dtype=tuple)
         for i in self.sortedids:
             self.cpdParams[i,0] = self.__computeCondGauss(i,self.parentDict,mea100,
@@ -296,7 +296,7 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
     
-    def predict(self, testMat, evidMat, trial, t, sampleSize=2000, burnInCount=1000,
+    def predict(self, testMat, evidMat, obsrate, trial, t, sampleSize=2000, burnInCount=1000,
                 samplingPeriod=2, startupVals=None):
         T = evidMat.shape[1]
         if startupVals is None:
@@ -312,10 +312,11 @@ class GaussianDBN(MLRegModel):
                                             self.parentDict, self.cpdParams, startupVals, evidMat,
                                             testMat, sampleSize=sampleSize,
                                             burnInCount=burnInCount, samplingPeriod=samplingPeriod,
-                                            proposalDist='uniform', width=width)
-        cPickle.dump((data,accList,propVals,accCount), open(utils.properties.outputDirPath +
-            'mhResults_topology={}_sampleSize={}_trial={}_t={}_{}.pkl'.format(
-            self.topology,sampleSize,trial,t,utils.properties.timeStamp),'wb'))
+                                            proposalDist='uniform', width=width,
+                                            tuneWindow=utils.properties.mh_tuneWindow)
+        cPickle.dump((data,accList,propVals,accCount,burnInCount), open(utils.properties.outputDirPath +
+            str(obsrate) +'/mhResults_topology={}_sampleSize={}_obsrate={}_trial={}_t={}_{}.pkl'.format(
+            self.topology,sampleSize,obsrate,trial,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)
         muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         return muData
