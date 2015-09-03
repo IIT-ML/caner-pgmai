@@ -23,6 +23,7 @@ import sys
 from collections import deque
 import os
 import multiprocessing as mp
+import datetime
 
 def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):
     sampleStorage = dict()
@@ -507,6 +508,7 @@ def testActiveInferenceGaussianDBN():
 
 def testActiveInferenceGaussianDBNParallel():
     start = time()
+    print 'Process started at:', datetime.datetime.fromtimestamp(start).strftime('%H:%M, %m/%d/%Y')
     tWin = 6
     topology = utils.properties.dbn_topology
     T = utils.properties.timeSpan

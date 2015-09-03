@@ -306,15 +306,13 @@ class GaussianDBN(MLRegModel):
 #         width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
 #              0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
 #              0.6,1.5,1.4,1.5,0.5,0.5]
-        width = 5.0
+        width = utils.properties.mh_startupWidth
         metropolisHastings = MetropolisHastings()
-        (data,accList,propVals,accCount,burnInCount) = metropolisHastings.sampleTemporal(self.sortedids,
-                                            self.parentDict, self.cpdParams, startupVals, evidMat,
-                                            testMat, sampleSize=sampleSize,
-                                            burnInCount=burnInCount, samplingPeriod=samplingPeriod,
-                                            proposalDist='uniform', width=width,
-                                            tuneWindow=utils.properties.mh_tuneWindow)
-        cPickle.dump((data,accList,propVals,accCount,burnInCount), open(utils.properties.outputDirPath +
+        (data,accList,propVals,accCount,burnInCount, widthMat) = metropolisHastings.sampleTemporal(
+            self.sortedids, self.parentDict, self.cpdParams, startupVals, evidMat, testMat,
+            sampleSize=sampleSize, burnInCount=burnInCount, samplingPeriod=samplingPeriod,
+            proposalDist='uniform', width=width, tuneWindow=utils.properties.mh_tuneWindow)
+        cPickle.dump((data,accList,propVals,accCount,burnInCount,widthMat), open(utils.properties.outputDirPath +
             str(obsrate) +'/mhResults_topology={}_sampleSize={}_obsrate={}_trial={}_t={}_{}.pkl'.format(
             self.topology,sampleSize,obsrate,trial,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)

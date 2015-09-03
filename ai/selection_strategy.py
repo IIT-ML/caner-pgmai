@@ -19,7 +19,7 @@ class RandomStrategy(object):
 class RandomStrategy2(object):
     def __init__(self, pool, seed=1):
         self.rgen = np.random.RandomState(seed)
-        self.pool = pool
+        self.pool = np.array(pool)
     
     def choices(self, k):
         self.rgen.shuffle(self.pool)
