@@ -31,49 +31,15 @@ class MetropolisHastings:
     def proposeFromNormal(self,loc=0,scale=1):
         return self.rs.normal(loc,scale)
     
-    def acceptInitial_backup(self, x_new, rvid, parentDict, childDict, currentVals, cpdParams):
-        parents = [parentid for parentid in parentDict[rvid] if parentid<self.rvCount]
-        parentValues = currentVals[parents,0]
-        loc = cpdParams[rvid,0][0] + np.dot(cpdParams[rvid,0][1].T,parentValues)
-        distVal = norm.pdf(x_new,loc=loc,scale=cpdParams[rvid,0][2]**.5)
-        x_curr = currentVals[rvid,0]
-#         loc = cpdParams[rvid,0][0] + np.dot(cpdParams[rvid,0][1].T,parentValues)
-        distVal2 = norm.pdf(x_curr,loc=loc,scale=cpdParams[rvid,0][2]**.5)
-        for child in childDict[rvid]:
-            if child < self.rvCount:
-                parents = [parentid for parentid in parentDict[child] if parentid<self.rvCount]
-                parentValues = currentVals[parents,0]
-                relativeInd = parents.index(rvid)
-                parentValues[relativeInd] = x_new
-                loc = cpdParams[child,0][0] + np.dot(cpdParams[child,0][1].T,parentValues)
-                distVal *= norm.pdf(currentVals[child,0],loc=loc,scale=cpdParams[child,0][2]**.5)
-                parentValues[relativeInd] = x_curr
-                loc = cpdParams[child,0][0] + np.dot(cpdParams[child,0][1].T,parentValues)
-                distVal2 *= norm.pdf(currentVals[child,0],loc=loc,scale=cpdParams[child,0][2]**.5)
-            elif len(currentVals.shape) > 1 and currentVals.shape[1] > 1:
-                child = child - self.rvCount
-                parentValues = self.getParentValsTemporal(rvid,self.rvCount,parentDict,currentVals,1)
-                parents = parentDict[child]
-                relativeInd = parents.index(rvid + self.rvCount)
-                parentValues[relativeInd] = x_new
-                loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-                distVal *= norm.pdf(currentVals[child,1],loc=loc,scale=cpdParams[child,1][2]**.5)
-                parentValues[relativeInd] = x_curr
-                loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-                distVal2 *= norm.pdf(currentVals[child,1],loc=loc,scale=cpdParams[child,1][2]**.5)
-        return distVal/distVal2
-    
     def acceptInitial(self, x_new, rvid, parentDict, childDict, currentVals, cpdParams):
         parents = [parentid for parentid in parentDict[rvid] if parentid<self.rvCount]
         parentValues = currentVals[parents,0]
         loc = cpdParams[rvid,0][0] + np.dot(cpdParams[rvid,0][1].T,parentValues)
         currentProb = norm.pdf(x_new,loc=loc,scale=cpdParams[rvid,0][2]**.5)
         self.localPrimeProbs[rvid,0] = currentProb
-        distVal = currentProb
-#         x_curr = currentVals[rvid,0]
-#         loc = cpdParams[rvid,0][0] + np.dot(cpdParams[rvid,0][1].T,parentValues)
-#         distVal2 = norm.pdf(x_curr,loc=loc,scale=cpdParams[rvid,0][2]**.5)
-        distVal2 = self.localProbs[rvid,0]
+        # distVal = currentProb
+        # distVal2 = self.localProbs[rvid,0]
+        division = currentProb/self.localProbs[rvid,0]
         for child in childDict[rvid]:
             if child < self.rvCount:
                 parents = [parentid for parentid in parentDict[child] if parentid<self.rvCount]
@@ -83,13 +49,11 @@ class MetropolisHastings:
                 loc = cpdParams[child,0][0] + np.dot(cpdParams[child,0][1].T,parentValues)
                 currentProb = norm.pdf(currentVals[child,0],loc=loc,scale=cpdParams[child,0][2]**.5)
                 self.localPrimeProbs[child,0] = currentProb
-                distVal *= currentProb
-#                 parentValues[relativeInd] = x_curr
-#                 loc = cpdParams[child,0][0] + np.dot(cpdParams[child,0][1].T,parentValues)
-#                 distVal2 *= norm.pdf(currentVals[child,0],loc=loc,scale=cpdParams[child,0][2]**.5)
-                distVal2 *= self.localProbs[child,0]
+                # distVal *= currentProb
+                # distVal2 *= self.localProbs[child,0]
+                division *= (currentProb/self.localProbs[child,0])
             elif len(currentVals.shape) > 1 and currentVals.shape[1] > 1:
-                child = child - self.rvCount
+                child -= self.rvCount
                 parentValues = self.getParentValsTemporal(rvid,self.rvCount,parentDict,currentVals,1)
                 parents = parentDict[child]
                 relativeInd = parents.index(rvid + self.rvCount)
@@ -97,13 +61,12 @@ class MetropolisHastings:
                 loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
                 currentProb = norm.pdf(currentVals[child,1],loc=loc,scale=cpdParams[child,1][2]**.5)
                 self.localPrimeProbs[child,1] = currentProb
-                distVal *= currentProb
-#                 parentValues[relativeInd] = x_curr
-#                 loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-#                 distVal2 *= norm.pdf(currentVals[child,1],loc=loc,scale=cpdParams[child,1][2]**.5)
-                distVal2 *= self.localProbs[child,1]
-        return distVal/distVal2
-    
+                # distVal *= currentProb
+                # distVal2 *= self.localProbs[child,1]
+                division *= (currentProb/self.localProbs[child,1])
+        # return distVal/distVal2
+        return division
+
     def getParentValsTemporal(self, rvid, rvCount, parentDict, currentVals, t):
         parents = parentDict[rvid]
         parentsNow = [parentid for parentid in parents if parentid<rvCount]
@@ -113,50 +76,15 @@ class MetropolisHastings:
         parentValues = np.append(parentNowValues, parentPrevValues)
         return parentValues
     
-    def acceptTemporal_backup(self, x_new, rvid, parentDict, childDict, currentVals, t,
-                       cpdParams):
-        
-        parentValues = self.getParentValsTemporal(rvid,self.rvCount,parentDict,currentVals,t)
-        loc = cpdParams[rvid,1][0] + np.dot(cpdParams[rvid,1][1].T,parentValues)
-        distVal = norm.pdf(x_new,loc=loc,scale=cpdParams[rvid,1][2]**.5)
-        x_curr = currentVals[rvid,t]
-#         loc = cpdParams[rvid,1][0] + np.dot(cpdParams[rvid,1][1].T,parentValues)
-        distVal2 = norm.pdf(x_curr,loc=loc,scale=cpdParams[rvid,1][2]**.5)
-        for child in childDict[rvid]:
-            if child < self.rvCount:
-                parents = parentDict[child]
-                parentValues = self.getParentValsTemporal(child,self.rvCount,parentDict,currentVals,t)
-                relativeInd = parents.index(rvid)
-                parentValues[relativeInd] = x_new
-                loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-                distVal *= norm.pdf(currentVals[child,t],loc=loc,scale=cpdParams[child,1][2]**.5)
-                parentValues[relativeInd] = x_curr
-                loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-                distVal2 *= norm.pdf(currentVals[child,t],loc=loc,scale=cpdParams[child,1][2]**.5)
-            elif t < self.T - 1:
-                child = child - self.rvCount
-                parents = parentDict[child]
-                parentValues = self.getParentValsTemporal(child,self.rvCount,parentDict,currentVals,t+1)
-                relativeInd = parents.index(rvid + self.rvCount)
-                parentValues[relativeInd] = x_new
-                loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-                distVal *= norm.pdf(currentVals[child,t+1],loc=loc,scale=cpdParams[child,1][2]**.5)
-                parentValues[relativeInd] = x_curr
-                loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-                distVal2 *= norm.pdf(currentVals[child,t+1],loc=loc,scale=cpdParams[child,1][2]**.5)
-        return distVal/distVal2
-    
     def acceptTemporal(self, x_new, rvid, parentDict, childDict, currentVals, t,
                        cpdParams):
         parentValues = self.getParentValsTemporal(rvid,self.rvCount,parentDict,currentVals,t)
         loc = cpdParams[rvid,1][0] + np.dot(cpdParams[rvid,1][1].T,parentValues)
         currentProb = norm.pdf(x_new,loc=loc,scale=cpdParams[rvid,1][2]**.5)
         self.localPrimeProbs[rvid,t] = currentProb
-        distVal = currentProb
-#         x_curr = currentVals[rvid,t]
-#         loc = cpdParams[rvid,1][0] + np.dot(cpdParams[rvid,1][1].T,parentValues)
-#         distVal2 = norm.pdf(x_curr,loc=loc,scale=cpdParams[rvid,1][2]**.5)
-        distVal2 = self.localProbs[rvid,t]
+        # distVal = currentProb
+        # distVal2 = self.localProbs[rvid,t]
+        division = currentProb/self.localProbs[rvid,t]
         for child in childDict[rvid]:
             if child < self.rvCount:
                 parents = parentDict[child]
@@ -166,13 +94,11 @@ class MetropolisHastings:
                 loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
                 currentProb = norm.pdf(currentVals[child,t],loc=loc,scale=cpdParams[child,1][2]**.5)
                 self.localPrimeProbs[child,t] = currentProb
-                distVal *= currentProb
-#                 parentValues[relativeInd] = x_curr
-#                 loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-#                 distVal2 *= norm.pdf(currentVals[child,t],loc=loc,scale=cpdParams[child,1][2]**.5)
-                distVal2 *= self.localProbs[child,t]
+                # distVal *= currentProb
+                # distVal2 *= self.localProbs[child,t]
+                division *= (currentProb/self.localProbs[child,t])
             elif t < self.T - 1:
-                child = child - self.rvCount
+                child -= self.rvCount
                 parents = parentDict[child]
                 parentValues = self.getParentValsTemporal(child,self.rvCount,parentDict,currentVals,t+1)
                 relativeInd = parents.index(rvid + self.rvCount)
@@ -180,13 +106,12 @@ class MetropolisHastings:
                 loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
                 currentProb = norm.pdf(currentVals[child,t+1],loc=loc,scale=cpdParams[child,1][2]**.5)
                 self.localPrimeProbs[child,t+1] = currentProb
-                distVal *= currentProb
-#                 parentValues[relativeInd] = x_curr
-#                 loc = cpdParams[child,1][0] + np.dot(cpdParams[child,1][1].T,parentValues)
-#                 distVal2 *= norm.pdf(currentVals[child,t+1],loc=loc,scale=cpdParams[child,1][2]**.5)
-                distVal2 *= self.localProbs[child,t+1]
-        return distVal/distVal2
-    
+                # distVal *= currentProb
+                # distVal2 *= self.localProbs[child,t+1]
+                division *= (currentProb/self.localProbs[child,t+1])
+        # return distVal/distVal2
+        return division
+
     def sampleTemporal(self, rvids, parentDict, cpdParams, startupVals,
                        evidMat=None, testMat=None, sampleSize=100000,
                        burnInCount=1000, samplingPeriod=2, proposalDist='uniform',

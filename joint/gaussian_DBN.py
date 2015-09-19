@@ -14,7 +14,7 @@ import numpy as np
 from scipy.stats import norm
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
-import cPickle
+import cPickle as cpk
 from collections import Counter
 from time import time
 
@@ -59,6 +59,8 @@ class GaussianDBN(MLRegModel):
             self.setParentsByMST(absround)
         elif topology == 'mst_enriched':
             self.setParentsByMST_enriched(absround)
+        elif topology == 'k2':
+            self.setParentsByK2()
         else:
             raise ValueError('topology should be either imt, or mst or mst_enriched.')
         self.cpdParams = np.empty(shape=mea.shape + (2,), dtype=tuple)
@@ -182,7 +184,15 @@ class GaussianDBN(MLRegModel):
             except KeyError:
                 self.parentDict[currentid] = list()
                 self.parentDict[currentid].append(currentid + 50)
-        
+
+    def setParentsByK2(self):
+        self.sortedids = range(self.rvCount)
+        (self.parentDict,_) = cpk.load(
+            open(utils.properties.k2StructureParentChildDictPath,'rb'))
+        for key in self.parentDict:
+            self.parentDict[key].append(key + self.rvCount)
+
+
     def __convertArcsToGraphInv(self,arclist):
         graph = dict()
         for edge in arclist:
@@ -312,7 +322,7 @@ class GaussianDBN(MLRegModel):
             self.sortedids, self.parentDict, self.cpdParams, startupVals, evidMat, testMat,
             sampleSize=sampleSize, burnInCount=burnInCount, samplingPeriod=samplingPeriod,
             proposalDist='uniform', width=width, tuneWindow=utils.properties.mh_tuneWindow)
-        cPickle.dump((data,accList,propVals,accCount,burnInCount,widthMat), open(utils.properties.outputDirPath +
+        cpk.dump((data,accList,propVals,accCount,burnInCount,widthMat), open(utils.properties.outputDirPath +
             str(obsrate) +'/mhResults_topology={}_sampleSize={}_obsrate={}_trial={}_t={}_{}.pkl'.format(
             self.topology,sampleSize,obsrate,trial,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)

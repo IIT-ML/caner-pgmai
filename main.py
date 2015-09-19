@@ -10,6 +10,7 @@ from joint.iterative_regressor import IRAModel
 from ai.selection_strategy import RandomStrategy,UNCSampling
 from utils.node import Neighborhood
 from independent.local_mean_regressor import LocalMeanRegressor
+from tests.test_gaussian_cpd import testActiveInferenceGaussianDBNParallel
 
 import numpy as np
 import cPickle
@@ -264,8 +265,12 @@ def apply_func_to_coords(coord_list, shape, func=None):
             marked_mat[coord[0],coord[1]] = func(marked_mat[coord[0],coord[1]])
     return marked_mat
 
+
+if __name__ == '__main__':
+    testActiveInferenceGaussianDBNParallel()
+
+
 # main_IRA()
-main_regression()
 
 # create_time_window_df_hour_feature(to_be_pickled=True)
 

@@ -538,7 +538,8 @@ def testActiveInferenceGaussianDBNParallel():
         if not os.path.exists(errorpath):
             os.makedirs(errorpath)
         print 'trial:'
-        selectionStrategyClass = RandomStrategy2
+        # selectionStrategyClass = RandomStrategy2
+        selectionStrategyClass = SlidingWindow
         for trial in range(numTrials):
             parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
@@ -575,6 +576,9 @@ def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset
     selectionStrategy = selectionStrategyClass(pool=gdbn.sortedids, seed=trial)
     predResults = np.empty(shape=(gdbn.rvCount, T))
     errResults = np.empty(shape=(T,6))
+    for t in range(T-1):
+        selectees = selectionStrategy.choices(obsCount)
+        evidMat[selectees,t] = True
     for t in range(T):
         selectees = selectionStrategy.choices(obsCount)
         evidMat[selectees,t] = True
@@ -614,11 +618,6 @@ def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset
             '{}_activeInfo_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
             format('mae', topology, tWin, T, obsrate, trial),
             errResults, delimiter=',')
-
-if __name__ == '__main__':
-    testActiveInferenceGaussianDBNParallel()
-
-
 
 def testActiveInferenceGaussianDBNCeilingPerformanceWithTrials():
     start = time()
