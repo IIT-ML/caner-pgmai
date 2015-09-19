@@ -12,7 +12,7 @@ ts = time.time()
 
 k2StructureParentChildDictPath = r'C:\Users\ckomurlu\Documents\workbench\experiments\20150911\parentChildDicts.pkl'
 
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150918/6_k2/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150918/7_k2-Debugging/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 18
 
@@ -23,6 +23,12 @@ mh_startupWidth = 5.0
 
 timeSpan = 12
 obsrateList = np.arange(0.0,0.7,0.1)
-numTrials = 5
+numTrials = 22
+
+selectionStrategy = 'randomStrategy2'
+# selectionStrategy = 'slidingWindow'
+# selectionStrategy = 'impactBased'
 
 dbn_topology = 'k2' #, 'mst', 'mst_enriched', 'imt'
+
+

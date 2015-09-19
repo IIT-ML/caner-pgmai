@@ -538,8 +538,13 @@ def testActiveInferenceGaussianDBNParallel():
         if not os.path.exists(errorpath):
             os.makedirs(errorpath)
         print 'trial:'
-        # selectionStrategyClass = RandomStrategy2
-        selectionStrategyClass = SlidingWindow
+        if utils.properties.selectionStrategy == 'randomStrategy2':
+            selectionStrategyClass = RandomStrategy2
+        elif utils.properties.selectionStrategy == 'slidingWindow':
+            selectionStrategyClass = SlidingWindow
+        elif utils.properties.selectionStrategy == 'impactBased':
+            raise NotImplementedError('Impact based strategy is selected as selection' +
+                                      'strategy which hasn\'t been implemented yet.')
         for trial in range(numTrials):
             parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
@@ -576,9 +581,6 @@ def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset
     selectionStrategy = selectionStrategyClass(pool=gdbn.sortedids, seed=trial)
     predResults = np.empty(shape=(gdbn.rvCount, T))
     errResults = np.empty(shape=(T,6))
-    for t in range(T-1):
-        selectees = selectionStrategy.choices(obsCount)
-        evidMat[selectees,t] = True
     for t in range(T):
         selectees = selectionStrategy.choices(obsCount)
         evidMat[selectees,t] = True
