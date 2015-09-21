@@ -7,6 +7,7 @@ Created on Jan 8, 2015
 import numpy as np
 from collections import deque
 
+
 class RandomStrategy(object):
     def __init__(self, seed=1):
         self.rgen = np.random.RandomState(seed)
@@ -15,7 +16,8 @@ class RandomStrategy(object):
         permuted_pool = self.rgen.permutation(pool)
         permuted_pool = map(tuple, permuted_pool)
         return permuted_pool[:k],permuted_pool[k:]
-    
+
+
 class RandomStrategy2(object):
     def __init__(self, pool, seed=1):
         self.rgen = np.random.RandomState(seed)
@@ -24,6 +26,7 @@ class RandomStrategy2(object):
     def choices(self, k):
         self.rgen.shuffle(self.pool)
         return self.pool[:k]
+
 
 class SlidingWindow(object):
     def __init__(self, pool, seed=1):
@@ -36,6 +39,65 @@ class SlidingWindow(object):
         selectees = list(self.rotationDeque)[:k]
         self.rotationDeque.rotate(-k)
         return selectees
+
+
+class ImpactBased(object):
+    def __init__(self, pool, parentDict, childDict, cpdParams, rvCount):
+        self.pool = pool
+        self.parentDict = parentDict
+        self.childDict = childDict
+        self.cpdParams = cpdParams
+        self.rvCount = rvCount
+
+    def choices(self, countSelectees, t, evidMat):
+        selectees = list() #np.empty(shape=(countSelectees,),dtype=np.int_)
+        for i in range(countSelectees):
+            maxImpact = 0
+            maxImapctSensor = -1
+            for sensor in self.pool:
+                if sensor not in selectees:
+                    currentImpact = self.__computeSensorImpact(sensor, t, evidMat)
+                    if currentImpact > maxImpact:
+                        maxImpact = currentImpact
+                        maxImapctSensor = sensor
+            selectees.append(maxImapctSensor)
+        return selectees
+
+    def __computeSensorImpact(self, sensor, t, evidMat):
+        if 0 == t:
+            betas = self.cpdParams[sensor][0][1]
+        else:
+            betas = self.cpdParams[sensor][1][1]
+        impactFactor = 0
+        parents = np.array(self.parentDict[sensor])
+        for parent in parents:
+            if parent < self.rvCount:
+                if not evidMat[parent,t]:
+                    indexInBetaVec = np.where(parents == parent)
+                    impactFactor += betas[indexInBetaVec]
+            elif t > 0:
+                if not evidMat[parent,t-1]:
+                    indexInBetaVec = np.where(parents == parent)
+                    impactFactor += betas[indexInBetaVec]
+        children = self.childDict[sensor]
+        for child in children:
+            parents = np.array(self.parentDict[child])
+            if child < self.rvCount:
+                if not evidMat[child,t]:
+                    if 0 == t:
+                        betas = self.cpdParams[child][0][1]
+                    else:
+                        betas = self.cpdParams[child][1][1]
+                    indexInBetaVec = np.where(parents == sensor)
+                    impactFactor += betas[indexInBetaVec]
+            #  the next time slice is irrelevant of the current/prediction time slice
+            # elif t < T:
+            #     if not evidMat[sensorid,t+1]:
+            #         betas = cpdParams[sensor][1]
+            #         indexInBetaVec = np.where(parents == sensor+rvCount)
+            #         impactFactor += betas[indexInBetaVec]
+        return impactFactor
+
 
 class UNCSampling(object):
     '''

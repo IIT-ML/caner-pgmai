@@ -13,7 +13,7 @@ from utils.readdata import convert_time_window_df_randomvar_hour
 from joint.gaussian_DBN import GaussianDBN
 from utils.metropolis_hastings import MetropolisHastings
 import utils.properties
-from ai.selection_strategy import RandomStrategy2, SlidingWindow
+from ai.selection_strategy import RandomStrategy2, SlidingWindow, ImpactBased
 
 import numpy as np
 import cPickle
@@ -24,6 +24,7 @@ from collections import deque
 import os
 import multiprocessing as mp
 import datetime
+
 
 def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):
     sampleStorage = dict()
@@ -49,6 +50,7 @@ def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):
                 np.random.normal(currentmean,var**.5)
     return sampleStorage
 
+
 def convertArcsToGraphInv(arrowlist):
     graph = dict()
     for edge in arrowlist:
@@ -56,6 +58,7 @@ def convertArcsToGraphInv(arrowlist):
             graph[edge[1]] = list()
         graph[edge[1]].append(edge[0])
     return graph
+
 
 def computeCondGauss(sensid, parentDict, mea, cova, initial=False):
     try:
@@ -102,6 +105,7 @@ def computeCondGauss(sensid, parentDict, mea, cova, initial=False):
 # for curid in ids:
 #     print sampleSto[curid].mean(), mea[curid], sampleSto[curid].var(), cova[curid,curid]
 
+
 def testAcyclicity():
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -130,6 +134,7 @@ def testAcyclicity():
 #         grey += children.tolist()
 #     pass
 
+
 def test():
     np.random.seed(42)
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -151,6 +156,7 @@ def test():
         print
     return
 
+
 def testPredictTrial():
     trainset,testset = convert_time_window_df_randomvar_hour(True,
                             Neighborhood.all_others_current_time)
@@ -158,6 +164,7 @@ def testPredictTrial():
     gdbn.fit(trainset)
     Y_pred = gdbn.predict_trial(testset)
     return
+
 
 def testPredict():
     np.random.seed(17)
@@ -192,6 +199,7 @@ def testPredict():
             rateInd += 1
     np.savetxt('C:/Users/ckomurlu/Documents/workbench/experiments/20150528/GDBN_RandomSamplingWrtRates.txt',
                np.mean(resultMat,axis=0),delimiter=',',fmt='%.4f')
+
 
 def stupidTest():
     np.random.seed(17)
@@ -231,6 +239,7 @@ def stupidTest():
             varMat[id_,t] = var
             probDenMat[id_,t] = rv.pdf(testset[id_,0].true_label)
 
+
 def testMH():
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -265,6 +274,7 @@ def testMH():
                                                         str(width)+'.pkl','wb'))
 
     print 'Process Ended in ', time() - start
+
 
 def testMH3():
     start = time()
@@ -303,6 +313,7 @@ def testMH3():
                                                         'mhResultsEvid1weightAdj_9k_mst.pkl','wb'))
 
     print 'Process Ended in ', time() - start
+
 
 def testMH4():
     start = time()
@@ -343,6 +354,7 @@ def testMH4():
 
     print 'Process Ended in ', time() - start
 
+
 def testMH6():
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -381,6 +393,7 @@ def testMH6():
                                                         'mhResultsEvid1widthAdjusted_MST5.pkl','wb'))
 
     print 'Process Ended in ', time() - start
+
 
 def testMH7():
     start = time()
@@ -422,6 +435,7 @@ def testMH7():
                                             'mhResultsEvid1weightAdj_9k_mst3.pkl','wb'))
 
     print 'Process Ended in ', time() - start
+
 
 def testActiveInferenceGaussianDBN():
     start = time()
@@ -506,6 +520,7 @@ def testActiveInferenceGaussianDBN():
 #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
+
 def testActiveInferenceGaussianDBNParallel():
     start = time()
     print 'Process started at:', datetime.datetime.fromtimestamp(start).strftime('%H:%M, %m/%d/%Y')
@@ -543,8 +558,9 @@ def testActiveInferenceGaussianDBNParallel():
         elif utils.properties.selectionStrategy == 'slidingWindow':
             selectionStrategyClass = SlidingWindow
         elif utils.properties.selectionStrategy == 'impactBased':
-            raise NotImplementedError('Impact based strategy is selected as selection' +
-                                      'strategy which hasn\'t been implemented yet.')
+            selectionStrategyClass = ImpactBased
+            # raise NotImplementedError('Impact based strategy is selected as selection' +
+            #                           'strategy which hasn\'t been implemented yet.')
         for trial in range(numTrials):
             parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
@@ -570,19 +586,24 @@ def testActiveInferenceGaussianDBNParallel():
     #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
+
 def trialFuncStar(allParams):
     trialFunc(*allParams)
+
 
 def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset, Y_test_allT,
                 sampleSize, burnInCount, topology, obsrate, obsCount,
                 evidencepath, predictionpath, errorpath):
     print 'obsrate {} trial {}'.format(obsrate,trial)
     evidMat = np.zeros(shape=(gdbn.rvCount,T),dtype=np.bool_)
-    selectionStrategy = selectionStrategyClass(pool=gdbn.sortedids, seed=trial)
+    # selectionStrategy = selectionStrategyClass(pool=gdbn.sortedids, seed=trial)
+    selectionStrategy = selectionStrategyClass(gdbn.sortedids, gdbn.parentDict, gdbn.childDict,
+                                               gdbn.cpdParams, gdbn.rvCount)
     predResults = np.empty(shape=(gdbn.rvCount, T))
     errResults = np.empty(shape=(T,6))
     for t in range(T):
-        selectees = selectionStrategy.choices(obsCount)
+        # selectees = selectionStrategy.choices(obsCount)
+        selectees = selectionStrategy.choices(obsCount,t,evidMat)
         evidMat[selectees,t] = True
         if t < tWin:
             Y_test = Y_test_allT[:,:t+1]
@@ -620,6 +641,7 @@ def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset
             '{}_activeInfo_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
             format('mae', topology, tWin, T, obsrate, trial),
             errResults, delimiter=',')
+
 
 def testActiveInferenceGaussianDBNCeilingPerformanceWithTrials():
     start = time()
@@ -723,6 +745,7 @@ def testActiveInferenceGaussianDBNCeilingPerformanceWithTrials():
 #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
+
 def testActiveInferenceGaussianDBNCeilingPerformance():
     start = time()
     tWin = 2
@@ -807,6 +830,7 @@ def testActiveInferenceGaussianDBNCeilingPerformance():
         format(topology,tWin,T, utils.properties.timeStamp),
         errResults, delimiter=',')
     print 'End of process, duration: {} secs'.format(time() - start)
+
 
 def testActiveInferenceGaussianDBNSlidingWindow():
     start = time()
@@ -897,6 +921,7 @@ def testActiveInferenceGaussianDBNSlidingWindow():
 #                                 T, obsrate,utils.properties.timeStamp),'wb'), protocol=0)
     print 'End of process, duration: {} secs'.format(time() - start)
 
+
 def testMH5():
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -936,6 +961,7 @@ def testMH5():
     
     print 'Process Ended in ', time() - start
 
+
 def testForwardSampling():
     start = time()
     trainset,testset = convert_time_window_df_randomvar_hour(True,
@@ -957,7 +983,8 @@ def testForwardSampling():
     sampleStorage = gdbn.forwardSampling(evidMat, testMat, sampleSize, T)
     cPickle.dump(sampleStorage,open(readdata.DATA_DIR_PATH + 'forwardSamplingGDBN_mst_4k.pkl','wb'))
     print 'Process ended in: ', time() - start
-    
+
+
 def testMH2():
     start = time()
     parentDict = {0:[3],1:[0,4],2:[1,5]}

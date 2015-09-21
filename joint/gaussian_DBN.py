@@ -31,6 +31,9 @@ class GaussianDBN(MLRegModel):
         self.sortedids = list()
         self.cpdParams = object()
         self.parentDict = dict()
+        self.childDict = dict()
+        self.rvCount = -1
+        self.topology = 'TBD'
     
     def fit(self, trainset, topology='original'):
         '''
@@ -187,7 +190,7 @@ class GaussianDBN(MLRegModel):
 
     def setParentsByK2(self):
         self.sortedids = range(self.rvCount)
-        (self.parentDict,_) = cpk.load(
+        (self.parentDict,self.childDict) = cpk.load(
             open(utils.properties.k2StructureParentChildDictPath,'rb'))
         for key in self.parentDict:
             self.parentDict[key].append(key + self.rvCount)

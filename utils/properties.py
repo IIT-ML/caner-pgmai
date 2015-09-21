@@ -22,12 +22,12 @@ mh_tuneWindow = 50
 mh_startupWidth = 5.0
 
 timeSpan = 12
-obsrateList = np.arange(0.0,0.7,0.1)
-numTrials = 22
+obsrateList = [0.4] #np.arange(0.0,0.7,0.1)
+numTrials = 1
 
-selectionStrategy = 'randomStrategy2'
+# selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'
-# selectionStrategy = 'impactBased'
+selectionStrategy = 'impactBased'
 
 dbn_topology = 'k2' #, 'mst', 'mst_enriched', 'imt'
 
