@@ -30,8 +30,8 @@ class RandomStrategy2(object):
 
 class SlidingWindow(object):
     def __init__(self, pool, seed=1):
-        self.rgen=np.random.RandomState(seed)
-        self.pool = pool
+        self.rgen = np.random.RandomState(seed)
+        self.pool = np.array(pool)
         self.rgen.shuffle(self.pool)
         self.rotationDeque = deque(self.pool)
     
@@ -65,9 +65,9 @@ class ImpactBased(object):
 
     def __computeSensorImpact(self, sensor, t, evidMat):
         if 0 == t:
-            betas = self.cpdParams[sensor][0][1]
+            betas = np.abs(self.cpdParams[sensor][0][1])
         else:
-            betas = self.cpdParams[sensor][1][1]
+            betas = np.abs(self.cpdParams[sensor][1][1])
         impactFactor = 0
         parents = np.array(self.parentDict[sensor])
         for parent in parents:
@@ -76,7 +76,7 @@ class ImpactBased(object):
                     indexInBetaVec = np.where(parents == parent)
                     impactFactor += betas[indexInBetaVec]
             elif t > 0:
-                if not evidMat[parent,t-1]:
+                if not evidMat[parent - self.rvCount,t-1]:
                     indexInBetaVec = np.where(parents == parent)
                     impactFactor += betas[indexInBetaVec]
         children = self.childDict[sensor]
@@ -85,9 +85,9 @@ class ImpactBased(object):
             if child < self.rvCount:
                 if not evidMat[child,t]:
                     if 0 == t:
-                        betas = self.cpdParams[child][0][1]
+                        betas = np.abs(self.cpdParams[child][0][1])
                     else:
-                        betas = self.cpdParams[child][1][1]
+                        betas = np.abs(self.cpdParams[child][1][1])
                     indexInBetaVec = np.where(parents == sensor)
                     impactFactor += betas[indexInBetaVec]
             #  the next time slice is irrelevant of the current/prediction time slice

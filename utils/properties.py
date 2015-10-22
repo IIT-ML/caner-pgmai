@@ -12,7 +12,7 @@ ts = time.time()
 
 k2StructureParentChildDictPath = r'C:\Users\ckomurlu\Documents\workbench\experiments\20150911\parentChildDicts.pkl'
 
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150918/7_k2-Debugging/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151001/5_GP_K2_tWin12/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 18
 
@@ -21,9 +21,10 @@ mh_burnInCount = 1000
 mh_tuneWindow = 50
 mh_startupWidth = 5.0
 
+tWin = 12
 timeSpan = 12
-obsrateList = [0.4] #np.arange(0.0,0.7,0.1)
-numTrials = 1
+obsrateList = np.arange(0.0, 0.7, 0.1)
+numTrials = 5
 
 # selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'

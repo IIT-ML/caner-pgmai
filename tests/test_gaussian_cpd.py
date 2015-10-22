@@ -14,6 +14,7 @@ from joint.gaussian_DBN import GaussianDBN
 from utils.metropolis_hastings import MetropolisHastings
 import utils.properties
 from ai.selection_strategy import RandomStrategy2, SlidingWindow, ImpactBased
+from utils.toolkit import standard_error
 
 import numpy as np
 import cPickle
@@ -24,6 +25,7 @@ from collections import deque
 import os
 import multiprocessing as mp
 import datetime
+
 
 
 def forwardSampling(ids, cpdParams, parentDict, sampleSize = 100):
@@ -524,7 +526,7 @@ def testActiveInferenceGaussianDBN():
 def testActiveInferenceGaussianDBNParallel():
     start = time()
     print 'Process started at:', datetime.datetime.fromtimestamp(start).strftime('%H:%M, %m/%d/%Y')
-    tWin = 6
+    tWin = utils.properties.tWin
     topology = utils.properties.dbn_topology
     T = utils.properties.timeSpan
     numTrials = utils.properties.numTrials
@@ -565,6 +567,7 @@ def testActiveInferenceGaussianDBNParallel():
             parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
                                   evidencepath, predictionpath, errorpath))
+
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     pool.map(trialFuncStar, parameterList)
 
@@ -576,9 +579,13 @@ def testActiveInferenceGaussianDBNParallel():
                                            '{}_window={}_T={}_obsRate={}_trial={}.csv'.
                                            format(topology,tWin,T,obsrate, trial), delimiter=',')
         np.savetxt(errorpath +
-                   'result_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                   'meanMAE_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
                    format(topology,tWin,T,obsrate, 'mean'),
                    np.mean(errResults,axis=0), delimiter=',')
+        np.savetxt(errorpath +
+                   'stderrMAE_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                   format(topology,tWin,T,obsrate, 'mean'),
+                   standard_error(errResults,axis=0), delimiter=',')
     #     np.savetxt(utils.properties.outputDirPath+'selectedSensorsObsRate{}.csv'.format(
     #             observationRate), selectMat, delimiter=',')
     #     cPickle.dump(errResults, open(utils.properties.outputDirPath+'result_activeInf_gaussianDBN_'+

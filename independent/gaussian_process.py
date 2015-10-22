@@ -8,12 +8,14 @@ from utils.readdata import convert_time_window_df_randomvar_hour, DATA_DIR_PATH
 from utils.node import Neighborhood
 from models.ml_reg_model import MLRegModel
 import utils.properties
+from utils.toolkit import standard_error
 
 import numpy as np
 from sklearn.gaussian_process import GaussianProcess
 from sklearn.metrics import mean_absolute_error,mean_squared_error
 from time import time
 import cPickle as cpk
+import os
 
 class GaussianProcessLocal(MLRegModel):
     def __init__(self):
@@ -100,19 +102,26 @@ class GaussianProcessLocal(MLRegModel):
     def runActiveInference():
         start = time()
         randomState = np.random.RandomState(seed=0)
-        obsrate = .5
-        numTrials = 100
-        T = 12
-        
+        numTrials = utils.properties.numTrials
+        T = utils.properties.timeSpan
         trainset,testset = convert_time_window_df_randomvar_hour(True,
                             Neighborhood.itself_previous_others_current)
         gp = GaussianProcessLocal()
         gp.fit(trainset,load=True)
-        for obsrate in np.arange(0.0,0.7,0.1):
+        for obsrate in utils.properties.obsrateList:
             obsCount = obsrate * gp.rvCount
             errResults = np.empty(shape=(numTrials,T,6))
             predResults = np.empty(shape=(numTrials, gp.rvCount, T))
             selectMat = np.empty(shape=(T,obsCount), dtype=np.int16)
+            evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
+            if not os.path.exists(evidencepath):
+                os.makedirs(evidencepath)
+            predictionpath = utils.properties.outputDirPath + str(obsrate) + '/predictions/'
+            if not os.path.exists(predictionpath):
+                os.makedirs(predictionpath)
+            errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
+            if not os.path.exists(errorpath):
+                os.makedirs(errorpath)
             print 'obsrate: {}'.format(obsrate)
             print 'trial:'
             for trial in range(numTrials):
@@ -139,21 +148,23 @@ class GaussianProcessLocal(MLRegModel):
                                         type_=2, evidence_mat=evidMat[:,t])
                     errResults[trial,t,5] = gp.compute_mean_squared_error(testset[:,t], ypred,
                                         type_=2,evidence_mat=evidMat[:,t])
-                np.savetxt(utils.properties.outputDirPath+'{}/evidences/'.format(obsrate) + 
+                np.savetxt(evidencepath +
                            'evidMat_trial={}_obsrate={}.csv'.format(trial,obsrate),
                            evidMat, delimiter=',')
-                np.savetxt(utils.properties.outputDirPath+'{}/predictions/'.format(obsrate) +
+                np.savetxt(predictionpath +
                     'predResults_activeInf_gaussianProcess_T={}_obsRate={}_{}_trial={}.csv'.
                     format(T,obsrate, utils.properties.timeStamp,trial),
                     predResults[trial], delimiter=',')
-                np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
+                np.savetxt(errorpath +
                     'result_activeInf_gaussianProcess_T={}_obsRate={}_{}_trial={}.csv'.
                     format(T,obsrate, utils.properties.timeStamp,trial),
                     errResults[trial], delimiter=',')
-            np.savetxt(utils.properties.outputDirPath+'{}/errors/'.format(obsrate) +
-                'result_activeInf_gaussianProcess_T={}_obsRate={}_{}_trial={}.csv'.
-                format(T,obsrate, utils.properties.timeStamp,'mean'),
-                np.mean(errResults,axis=0), delimiter=',')
+            np.savetxt(errorpath +
+                   'meanMAE_activeInf_gaussianProcess_T={}_obsRate={}_trial={}.csv'.
+                   format(T,obsrate, 'mean'),
+                   np.mean(errResults,axis=0), delimiter=',')
+            np.savetxt(errorpath +
+                   'stderrMAE_activeInf_gaussianProcess_T={}_obsRate={}_trial={}.csv'.
+                   format(T,obsrate, 'mean'),
+                   standard_error(errResults,axis=0), delimiter=',')
         print 'End of process, duration: {} secs'.format(time() - start)
-
-GaussianProcessLocal.runActiveInference()
