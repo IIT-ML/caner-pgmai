@@ -34,7 +34,8 @@ class GaussianDBN(MLRegModel):
         self.childDict = dict()
         self.rvCount = -1
         self.topology = 'TBD'
-    
+
+
     def fit(self, trainset, topology='original'):
         '''
         Parameters
@@ -62,8 +63,10 @@ class GaussianDBN(MLRegModel):
             self.setParentsByMST(absround)
         elif topology == 'mst_enriched':
             self.setParentsByMST_enriched(absround)
-        elif topology == 'k2':
-            self.setParentsByK2()
+        elif topology == 'k2_bin10':
+            self.setParentsByK2(binCount=10)
+        elif topology == 'k2_bin5':
+            self.setParentsByK2(binCount=5)
         else:
             raise ValueError('topology should be either imt, or mst or mst_enriched.')
         self.cpdParams = np.empty(shape=mea.shape + (2,), dtype=tuple)
@@ -72,7 +75,8 @@ class GaussianDBN(MLRegModel):
                                                         cova100,initial=True)
             self.cpdParams[i,1] = self.__computeCondGauss(i,self.parentDict,
                                                         mea100,cova100)
-    
+
+
     def setParentsByMST(self,absround):
         self.parentDict = dict()
         for i in range(self.rvCount):
@@ -188,10 +192,16 @@ class GaussianDBN(MLRegModel):
                 self.parentDict[currentid] = list()
                 self.parentDict[currentid].append(currentid + 50)
 
-    def setParentsByK2(self):
+    def setParentsByK2(self, binCount):
         self.sortedids = range(self.rvCount)
-        (self.parentDict,self.childDict) = cpk.load(
-            open(utils.properties.k2StructureParentChildDictPath,'rb'))
+        if 10 == binCount:
+            (self.parentDict,self.childDict) = cpk.load(
+                open(utils.properties.k2bin10StructureParentChildDictPath,'rb'))
+        elif 5 == binCount:
+            (self.parentDict,self.childDict) = cpk.load(
+                open(utils.properties.k2bin5StructureParentChildDictPath,'rb'))
+        else:
+            raise ValueError('Bin count can only be selected as 10 or 5.' + str(binCount) + ' was given.')
         for key in self.parentDict:
             self.parentDict[key].append(key + self.rvCount)
 

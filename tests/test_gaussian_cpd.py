@@ -13,7 +13,7 @@ from utils.readdata import convert_time_window_df_randomvar_hour
 from joint.gaussian_DBN import GaussianDBN
 from utils.metropolis_hastings import MetropolisHastings
 import utils.properties
-from ai.selection_strategy import RandomStrategy2, SlidingWindow, ImpactBased
+from ai.selection_strategy import StrategyFactory  # RandomStrategy2, SlidingWindow, ImpactBased
 from utils.toolkit import standard_error
 
 import numpy as np
@@ -555,16 +555,9 @@ def testActiveInferenceGaussianDBNParallel():
         if not os.path.exists(errorpath):
             os.makedirs(errorpath)
         print 'trial:'
-        if utils.properties.selectionStrategy == 'randomStrategy2':
-            selectionStrategyClass = RandomStrategy2
-        elif utils.properties.selectionStrategy == 'slidingWindow':
-            selectionStrategyClass = SlidingWindow
-        elif utils.properties.selectionStrategy == 'impactBased':
-            selectionStrategyClass = ImpactBased
-            # raise NotImplementedError('Impact based strategy is selected as selection' +
-            #                           'strategy which hasn\'t been implemented yet.')
+        selection_strategy_class = StrategyFactory.generate_selection_strategy()
         for trial in range(numTrials):
-            parameterList.append((trial, gdbn, selectionStrategyClass, T, tWin, sensormeans,
+            parameterList.append((trial, gdbn, selection_strategy_class, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
                                   evidencepath, predictionpath, errorpath))
 

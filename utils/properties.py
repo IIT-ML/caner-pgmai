@@ -10,9 +10,12 @@ import datetime
 import numpy as np
 ts = time.time()
 
-k2StructureParentChildDictPath = r'C:\Users\ckomurlu\Documents\workbench\experiments\20150911\parentChildDicts.pkl'
+k2bin10StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150911/' + \
+                                      'parentChildDicts_k2_bin10.pkl'
+k2bin5StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151023/' + \
+                                     'parentChildDicts_k2_bin5.pkl'
 
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151001/5_GP_K2_tWin12/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151027/4_NBS_K2/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 18
 
@@ -28,8 +31,9 @@ numTrials = 5
 
 # selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'
-selectionStrategy = 'impactBased'
+# selectionStrategy = 'impactBased'
+selectionStrategy = 'netImpactBased'
 
-dbn_topology = 'k2' #, 'mst', 'mst_enriched', 'imt'
+dbn_topology = 'k2_bin5' #, 'k2_bin10', 'mst', 'mst_enriched', 'imt'
 
 
