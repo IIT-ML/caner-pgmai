@@ -12,10 +12,10 @@ ts = time.time()
 
 k2bin10StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150911/' + \
                                       'parentChildDicts_k2_bin10.pkl'
-k2bin5StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151023/' + \
-                                     'parentChildDicts_k2_bin5.pkl'
+k2bin5StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151102/' + \
+                                     'humidity_parentChildDicts_k2_bin5.pkl'
 
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151027/4_NBS_K2/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151102/4_NBS_K2/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 18
 
@@ -26,8 +26,8 @@ mh_startupWidth = 5.0
 
 tWin = 12
 timeSpan = 12
-obsrateList = np.arange(0.0, 0.7, 0.1)
-numTrials = 5
+obsrateList = [0.0]  # np.arange(0.1, 0.7, 0.1)
+numTrials = 1
 
 # selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'

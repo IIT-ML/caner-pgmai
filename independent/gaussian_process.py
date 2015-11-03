@@ -9,6 +9,7 @@ from utils.node import Neighborhood
 from models.ml_reg_model import MLRegModel
 import utils.properties
 from utils.toolkit import standard_error
+from data.humidity_data_preprocess import HumidityProcessor
 
 import numpy as np
 from sklearn.gaussian_process import GaussianProcess
@@ -19,9 +20,6 @@ import os
 
 
 class GaussianProcessLocal(MLRegModel):
-    def __init__(self):
-        self.gpmat = object()
-
     def fit(self, train_mat, load=False):
         if load:
             tempgp = cpk.load(open(DATA_DIR_PATH + 'gaussianProcessLocal.pkl', 'rb'))
@@ -41,6 +39,9 @@ class GaussianProcessLocal(MLRegModel):
                 self.gpmat[row] = GaussianProcess(corr='cubic', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
                                                   random_start=100)
                 self.gpmat[row].fit(Xtrain[row, :48].reshape(-1, 1), ytrain_mean[row])
+
+    def __init__(self):
+        self.gpmat = object()
 
     def predict(self, test_mat, evid_mat=None):
         if evid_mat is None:
@@ -104,8 +105,11 @@ class GaussianProcessLocal(MLRegModel):
         randomState = np.random.RandomState(seed=0)
         numTrials = utils.properties.numTrials
         T = utils.properties.timeSpan
-        trainset, testset = convert_time_window_df_randomvar_hour(True,
-                                                                  Neighborhood.itself_previous_others_current)
+        # trainset, testset = convert_time_window_df_randomvar_hour(True,
+        #                                                           Neighborhood.itself_previous_others_current)
+        hp = HumidityProcessor()
+        trainset, testset = hp.convert_time_window_df_randomvar_hour(True,
+                                        Neighborhood.itself_previous_others_current)
         gp = GaussianProcessLocal()
         gp.fit(trainset, load=True)
         for obsrate in utils.properties.obsrateList:

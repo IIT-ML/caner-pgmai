@@ -15,6 +15,7 @@ from utils.metropolis_hastings import MetropolisHastings
 import utils.properties
 from ai.selection_strategy import StrategyFactory  # RandomStrategy2, SlidingWindow, ImpactBased
 from utils.toolkit import standard_error
+from data.humidity_data_preprocess import HumidityProcessor
 
 import numpy as np
 import cPickle
@@ -531,7 +532,17 @@ def testActiveInferenceGaussianDBNParallel():
     T = utils.properties.timeSpan
     numTrials = utils.properties.numTrials
 
-    trainset,testset = convert_time_window_df_randomvar_hour(True,
+    # trainset,testset = convert_time_window_df_randomvar_hour(True,
+    #                                                          Neighborhood.itself_previous_others_current)
+
+    hp = HumidityProcessor()
+    hp.read_data(to_be_pickled=True)
+    hp.digitize_data(to_be_pickled=True)
+    hp.window_data(to_be_pickled=True)
+    hp.create_time_window_df_hour_feature(to_be_pickled=True)
+    hp.add_day_to_time_window_df_hour()
+    hp.train_test_split_by_day_hour(to_be_pickled=True)
+    trainset,testset = hp.convert_time_window_df_randomvar_hour(True,
                                                              Neighborhood.itself_previous_others_current)
     gdbn = GaussianDBN()
     gdbn.fit(trainset, topology=topology)

@@ -14,18 +14,19 @@ from utils.node import SensorRVNode
 # DATA_DIR_PATH = 'data/'
 DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\regressionDataDays2_3_4-5_6\\'
 
-def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
+
+def read_data(discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
-    tempdf = pd.read_csv('C:/Users/ckomurlu/Documents/workbench/data/' + \
-    'TimeSeries/intelResearch/data/data2.txt', sep=' ', header=None, \
-    names=['date','time','epoch','moteid','temperature', 'humidity','light', \
-           'voltage'], parse_dates={'datentime' : [0,1]}, dtype={ \
-           'datentime':np.datetime64, \
-           'epoch':np.int,'moteid':np.int8,'temperature':np.float64, \
-           'humidity':np.float64,'light':np.float64,'voltage':np.float64})
+    tempdf = pd.read_csv('C:/Users/ckomurlu/Documents/workbench/data/' +
+        'TimeSeries/intelResearch/data/data2.txt', sep=' ', header=None,
+        names=['date','time','epoch','moteid','temperature', 'humidity','light',
+               'voltage'], parse_dates={'datentime': [0, 1]}, dtype={
+               'datentime': np.datetime64,
+               'epoch': np.int, 'moteid': np.int8, 'temperature': np.float64,
+               'humidity': np.float64, 'light': np.float64, 'voltage': np.float64})
     del tempdf['light']
     del tempdf['voltage']
-    del tempdf['humidity']
+    del tempdf['temperature']
     tempdf = tempdf.sort(columns='datentime')
     tempdf = tempdf[tempdf.datentime < 
                     pd.Timestamp('2004-03-10 13:08:46.002832')]
@@ -36,22 +37,20 @@ def read_data(binCount=545, discarded_sensors=[5, 15, 18, 49],
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return tempdf
 
-def digitize_data(tempdf = None, binCount = 545,
-                  discarded_sensors = [5, 15, 18, 49],
+
+def digitize_data(tempdf=None, binCount=545, discarded_sensors=[5, 15, 18, 49],
                   to_be_pickled=False):
     if tempdf is None:
         try:
             tempdf = cPickle.load(open(DATA_DIR_PATH+'tempdf.pickle','rb'))
         except(IOError):
-            tempdf = read_data(binCount=binCount,
-                           discarded_sensors=discarded_sensors,
-                           to_be_pickled=to_be_pickled)
-    tempdf['unixtime'] = pd.Series(np.array([elem.value \
-            for elem in tempdf['datentime']]), index=tempdf.index)
-    
-    timeBins = np.linspace(tempdf.unixtime.min(),\
-                           tempdf.unixtime.max(),endpoint=False,num=binCount)
-    digTime = np.digitize(tempdf.unixtime,timeBins)
+            tempdf = read_data(discarded_sensors=discarded_sensors,
+                               to_be_pickled=to_be_pickled)
+    tempdf['unixtime'] = pd.Series(np.array([elem.value
+                                    for elem in tempdf['datentime']]), index=tempdf.index)
+    timeBins = np.linspace(tempdf.unixtime.min(),
+                           tempdf.unixtime.max(), endpoint=False, num=binCount)
+    digTime = np.digitize(tempdf.unixtime, timeBins)
     
     tempdf['digTime'] = digTime
     if to_be_pickled:
@@ -59,9 +58,9 @@ def digitize_data(tempdf = None, binCount = 545,
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return tempdf
 
-def window_data(digitizeddf = None, binCount = 545,
-                discarded_sensors = [5, 15, 18, 49],
-                to_be_pickled=False):
+
+def window_data(digitizeddf=None, binCount=545, discarded_sensors=[5, 15, 18, 49],
+                to_be_pickled=False, target_field='temperature'):
     if digitizeddf is None:
         try:
             digitizeddf = cPickle.load(open(DATA_DIR_PATH+
@@ -71,7 +70,7 @@ def window_data(digitizeddf = None, binCount = 545,
                                     discarded_sensors=discarded_sensors,
                                     to_be_pickled=to_be_pickled)
     groups = digitizeddf.groupby(['moteid','digTime'])
-    meanSeries = groups.temperature.mean()
+    meanSeries = groups[target_field].mean()
     time_window_df = pd.DataFrame(meanSeries)
     time_window_df.reset_index(level=0, inplace=True)
     time_window_df.reset_index(level=1, inplace=True)
@@ -81,6 +80,7 @@ def window_data(digitizeddf = None, binCount = 545,
                      open(DATA_DIR_PATH+'time_window_df.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return time_window_df
+
 
 def digitize_temperature(time_window_df):
     time_window_df['digTemp'] = pd.Series(np.empty((len(time_window_df))),
@@ -137,6 +137,7 @@ def convert_digitized_to_feature_matrix(digitizeddf = None,
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return sorted_mat,bin_feature_mat
 
+
 def partition_feature_mat_into_sensors(digitizeddf = None,
                                        time_window_df = None,
                                        to_be_pickled=False):
@@ -186,6 +187,7 @@ def partition_feature_mat_into_sensors(digitizeddf = None,
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return one_sensor_data_dict,bin_feature_dict
 
+
 def create_time_window_df_bin_feature(digitizeddf=None,
                            time_window_df=None,
                            to_be_pickled=False):
@@ -225,6 +227,7 @@ def create_time_window_df_bin_feature(digitizeddf=None,
             open(DATA_DIR_PATH+'time_window_df_bin_feature.pickle','wb'))
     return time_window_df
 
+
 def add_day_to_time_window_df(time_window_df=None,to_be_pickled=None):
     if time_window_df is None:
         try:
@@ -239,12 +242,13 @@ def add_day_to_time_window_df(time_window_df=None,to_be_pickled=None):
     time_window_df['day'] = days
     return time_window_df
 
-def train_test_split_by_day(to_be_pickled=False):
+
+def train_test_split_by_day(time_window_df=None, to_be_pickled=False):
 #     train_days = range(5)
 #     test_days = range(5,10)
     train_days = [2,3,4]
     test_days = [5,6]
-    time_window_df = add_day_to_time_window_df()
+    time_window_df = add_day_to_time_window_df(time_window_df)
     train_df = time_window_df[time_window_df.day.isin(train_days)]
     test_df = time_window_df[time_window_df.day.isin(test_days)]
     if to_be_pickled:
@@ -347,6 +351,7 @@ def create_time_window_df_hour_feature(digitizeddf=None,
             open(DATA_DIR_PATH+'time_window_df_hour_feature.pickle','wb'))
     return time_window_df
 
+
 def add_day_to_time_window_df_hour(time_window_df=None,to_be_pickled=False):
     if time_window_df is None:
         try:
@@ -361,6 +366,7 @@ def add_day_to_time_window_df_hour(time_window_df=None,to_be_pickled=False):
     time_window_df['day'] = days
     return time_window_df
 
+
 def train_test_split_by_day_hour(to_be_pickled=False):
 #     train_days = range(5)
 #     test_days = range(5,10)
@@ -374,6 +380,7 @@ def train_test_split_by_day_hour(to_be_pickled=False):
                      'traintestdayshour.pickle','wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
     return train_df,test_df
+
 
 def convert_time_window_df_randomvar_hour(to_be_pickled=False,
 #                                      neighborhood_def=np.setdiff1d):
