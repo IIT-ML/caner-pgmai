@@ -34,6 +34,7 @@ class GaussianDBN(MLRegModel):
         self.childDict = dict()
         self.rvCount = -1
         self.topology = 'TBD'
+        self.means = np.empty(shape=0)
 
 
     def fit(self, trainset, topology='original'):
@@ -49,13 +50,13 @@ class GaussianDBN(MLRegModel):
         '''
         self.rvCount = trainset.shape[0]
         X = np.vectorize(lambda x: x.true_label)(trainset)
-        mea = np.mean(X,axis=1)
-        mea100 = np.append(mea,mea)
-        cova = np.cov(X[:,:])
-        Y = np.append(X[:,1:],X[:,:-1],axis=0)
+        self.means = np.mean(X,axis=1)
+        mea100 = np.append(self.means,self.means)
+        cova = np.cov(X[:, :])
+        Y = np.append(X[:, 1:], X[:, :-1], axis=0)
         cova100 = np.cov(Y)
         infomat = np.linalg.inv(cova)
-        absround = np.absolute(np.around(infomat,6))
+        absround = np.absolute(np.around(infomat, 6))
         self.topology = topology
         if topology == 'imt':
             self.setParentsByThreshold(absround)
@@ -69,11 +70,11 @@ class GaussianDBN(MLRegModel):
             self.setParentsByK2(binCount=5)
         else:
             raise ValueError('topology should be either imt, or mst or mst_enriched.')
-        self.cpdParams = np.empty(shape=mea.shape + (2,), dtype=tuple)
+        self.cpdParams = np.empty(shape=self.means.shape + (2,), dtype=tuple)
         for i in self.sortedids:
-            self.cpdParams[i,0] = self.__computeCondGauss(i,self.parentDict,mea100,
+            self.cpdParams[i, 0] = self.__computeCondGauss(i,self.parentDict,mea100,
                                                         cova100,initial=True)
-            self.cpdParams[i,1] = self.__computeCondGauss(i,self.parentDict,
+            self.cpdParams[i, 1] = self.__computeCondGauss(i,self.parentDict,
                                                         mea100,cova100)
 
 
@@ -323,7 +324,8 @@ class GaussianDBN(MLRegModel):
                 samplingPeriod=2, startupVals=None):
         T = evidMat.shape[1]
         if startupVals is None:
-            startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
+            # startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
+            startupVals = np.repeat(self.means.reshape(-1, 1), T, axis=1)
         else:
             assert testMat.shape==startupVals.shape, 'testMat and startupVals shapes don\'t match'
 #         width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
@@ -335,9 +337,9 @@ class GaussianDBN(MLRegModel):
             self.sortedids, self.parentDict, self.cpdParams, startupVals, evidMat, testMat,
             sampleSize=sampleSize, burnInCount=burnInCount, samplingPeriod=samplingPeriod,
             proposalDist='uniform', width=width, tuneWindow=utils.properties.mh_tuneWindow)
-        cpk.dump((data,accList,propVals,accCount,burnInCount,widthMat), open(utils.properties.outputDirPath +
-            str(obsrate) +'/mhResults_topology={}_sampleSize={}_obsrate={}_trial={}_t={}_{}.pkl'.format(
-            self.topology,sampleSize,obsrate,trial,t,utils.properties.timeStamp),'wb'))
+        # cpk.dump((data,accList,propVals,accCount,burnInCount,widthMat), open(utils.properties.outputDirPath +
+        #     str(obsrate) +'/mhResults_topology={}_sampleSize={}_obsrate={}_trial={}_t={}_{}.pkl'.format(
+        #     self.topology,sampleSize,obsrate,trial,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)
         muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         return muData

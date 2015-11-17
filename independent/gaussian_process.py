@@ -105,13 +105,15 @@ class GaussianProcessLocal(MLRegModel):
         randomState = np.random.RandomState(seed=0)
         numTrials = utils.properties.numTrials
         T = utils.properties.timeSpan
-        # trainset, testset = convert_time_window_df_randomvar_hour(True,
-        #                                                           Neighborhood.itself_previous_others_current)
-        hp = HumidityProcessor()
-        trainset, testset = hp.convert_time_window_df_randomvar_hour(True,
-                                        Neighborhood.itself_previous_others_current)
+        trainset, testset = convert_time_window_df_randomvar_hour(True,
+                                                                  Neighborhood.itself_previous_others_current)
+        # hp = HumidityProcessor()
+        # trainset2, testset2 = hp.convert_time_window_df_randomvar_hour(True,
+        #                                 Neighborhood.itself_previous_others_current)
+        # trainset = np.append(trainset1, trainset2, axis=0)
+        # testset = np.append(testset1, testset2, axis=0)
         gp = GaussianProcessLocal()
-        gp.fit(trainset, load=True)
+        gp.fit(trainset, load=False)
         for obsrate in utils.properties.obsrateList:
             obsCount = obsrate * gp.rvCount
             errResults = np.empty(shape=(numTrials, T, 6))

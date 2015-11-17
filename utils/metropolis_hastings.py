@@ -26,7 +26,10 @@ class MetropolisHastings:
         return childDict
     
     def proposeFromUniform(self, center, width):
-        return self.rs.uniform(center-width, center+width)
+        try:
+            return self.rs.uniform(center-width, center+width)
+        except OverflowError:
+            pass
     
     def proposeFromNormal(self,loc=0,scale=1):
         return self.rs.normal(loc,scale)
