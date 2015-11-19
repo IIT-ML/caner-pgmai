@@ -3,18 +3,19 @@ Created on Jan 8, 2015
 
 @author: ckomurlu
 '''
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 import numpy as np
 from collections import deque
 
-import utils
+import utils.properties
+from utils.decorations import deprecated
 
 
 class StrategyFactory(object):
     __metaclass__ = ABCMeta
 
     @staticmethod
-    def generate_selection_strategy():
+    def generate_selection_strategy_depr():
         if 'randomStrategy2' == utils.properties.selectionStrategy:
             selection_strategy_class = RandomStrategy2
         elif 'slidingWindow' == utils.properties.selectionStrategy:
@@ -28,7 +29,44 @@ class StrategyFactory(object):
                              'utils.propoerties.')
         return selection_strategy_class
 
+    @staticmethod
+    def generate_selection_strategy(strategy_name, **kwargs):
+        selection_strategy = ''
+        if 'randomStrategy2' == strategy_name:
+            selection_strategy = RandomStrategy2(pool=kwargs['pool'], seed=kwargs['seed'])
+        elif 'slidingWindow' == strategy_name:
+            selection_strategy = SlidingWindow(pool=kwargs['pool'], seed=kwargs['seed'])
+        elif 'impactBased' == strategy_name:
+            selection_strategy = ImpactBased(pool=kwargs['pool'], parentDict=kwargs['parentDict'],
+                                             childDict=kwargs['childDict'], cpdParams=kwargs['cpdParams'],
+                                             rvCount=kwargs['rvCount'])
 
+        elif 'netImpactBased' == strategy_name:
+            selection_strategy = NetImpactBased(pool=kwargs['pool'], parentDict=kwargs['parentDict'],
+                                             childDict=kwargs['childDict'], cpdParams=kwargs['cpdParams'],
+                                             rvCount=kwargs['rvCount'])
+        else:
+            raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
+                             'utils.propoerties.')
+        return selection_strategy
+
+
+class AbstractSelectionStrategy(object):
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __init__(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def choices(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def __str__(self):
+        pass
+
+@deprecated
 class RandomStrategy(object):
     def __init__(self, seed=1):
         self.rgen = np.random.RandomState(seed)
@@ -39,30 +77,39 @@ class RandomStrategy(object):
         return permuted_pool[:k],permuted_pool[k:]
 
 
-class RandomStrategy2(object):
+class RandomStrategy2(AbstractSelectionStrategy):
     def __init__(self, pool, seed=1):
+        self.seed = seed
         self.rgen = np.random.RandomState(seed)
         self.pool = np.array(pool)
     
-    def choices(self, k):
+    def choices(self, count_selectees, **kwargs):
         self.rgen.shuffle(self.pool)
-        return self.pool[:k]
+        return self.pool[:count_selectees].tolist()
+
+    def __str__(self):
+        return '[rgen seed: ' + str(self.seed) + ', pool: ' + str(self.pool) + ']'
 
 
-class SlidingWindow(object):
+class SlidingWindow(AbstractSelectionStrategy):
     def __init__(self, pool, seed=1):
+        self.seed = seed
         self.rgen = np.random.RandomState(seed)
         self.pool = np.array(pool)
         self.rgen.shuffle(self.pool)
         self.rotationDeque = deque(self.pool)
     
-    def choices(self, k):
-        selectees = list(self.rotationDeque)[:k]
-        self.rotationDeque.rotate(-k)
+    def choices(self, count_selectees, **kwargs):
+        selectees = list(self.rotationDeque)[:count_selectees]
+        self.rotationDeque.rotate(-count_selectees)
         return selectees
 
+    def __str__(self):
+        return '[rgen seed: ' + str(self.seed) + ', pool: ' + str(self.pool) + \
+               ', deque: ' + str(list(self.rotationDeque)) + ']'
 
-class ImpactBased(object):
+
+class ImpactBased(AbstractSelectionStrategy):
     def __init__(self, pool, parentDict, childDict, cpdParams, rvCount):
         self.pool = pool
         self.parentDict = parentDict
@@ -70,18 +117,18 @@ class ImpactBased(object):
         self.cpdParams = cpdParams
         self.rvCount = rvCount
 
-    def choices(self, countSelectees, t, evidMat):
+    def choices(self, count_selectees, t, evidMat, **kwargs):
         selectees = list()  # np.empty(shape=(countSelectees,),dtype=np.int_)
-        for i in range(countSelectees):
-            maxImpact = 0
-            maxImapctSensor = -1
+        for i in range(count_selectees):
+            max_impact = 0
+            max_imapct_sensor = -1
             for sensor in self.pool:
                 if sensor not in selectees:
-                    currentImpact = self._computeSensorImpact(sensor, t, evidMat)
-                    if currentImpact > maxImpact:
-                        maxImpact = currentImpact
-                        maxImapctSensor = sensor
-            selectees.append(maxImapctSensor)
+                    current_impact = self._computeSensorImpact(sensor, t, evidMat)
+                    if current_impact > max_impact:
+                        max_impact = current_impact
+                        max_imapct_sensor = sensor
+            selectees.append(max_imapct_sensor)
         return selectees
 
     def _computeSensorImpact(self, sensor, t, evidMat):
@@ -102,8 +149,8 @@ class ImpactBased(object):
                     impactFactor += betas[indexInBetaVec]
         children = self.childDict[sensor]
         for child in children:
-            parents = np.array(self.parentDict[child])
             if child < self.rvCount:
+                parents = np.array(self.parentDict[child])
                 if not evidMat[child,t]:
                     if 0 == t:
                         betas = np.abs(self.cpdParams[child][0][1])
@@ -111,14 +158,16 @@ class ImpactBased(object):
                         betas = np.abs(self.cpdParams[child][1][1])
                     indexInBetaVec = np.where(parents == sensor)
                     impactFactor += betas[indexInBetaVec]
-            #  the next time slice is irrelevant of the current/prediction time slice
-            # elif t < T:
-            #     if not evidMat[sensorid,t+1]:
-            #         betas = cpdParams[sensor][1]
-            #         indexInBetaVec = np.where(parents == sensor+rvCount)
-            #         impactFactor += betas[indexInBetaVec]
+                    #  the next time slice is irrelevant of the current/prediction time slice
+                    # elif t < T:
+                    #     if not evidMat[sensorid,t+1]:
+                    #         betas = cpdParams[sensor][1]
+                    #         indexInBetaVec = np.where(parents == sensor+rvCount)
+                    #         impactFactor += betas[indexInBetaVec]
         return impactFactor
 
+    def __str__(self):
+        return '[pool: ' + str(self.pool) + ', rv count: ' + str(self.rvCount) + ']'
 
 class NetImpactBased(ImpactBased):
     def _computeSensorImpact(self, sensor, t, evid_mat):
@@ -143,8 +192,8 @@ class NetImpactBased(ImpactBased):
                     impact_factor += betas[index_in_beta_vec]
         children = self.childDict[sensor]
         for child in children:
-            parents = np.array(self.parentDict[child])
             if child < self.rvCount:
+                parents = np.array(self.parentDict[child])
                 if 0 == t:
                     betas = np.abs(self.cpdParams[child][0][1])
                 else:
@@ -154,12 +203,12 @@ class NetImpactBased(ImpactBased):
                     impact_factor -= betas[index_in_beta_vec]
                 else:
                     impact_factor += betas[index_in_beta_vec]
-            #  the next time slice is irrelevant of the current/prediction time slice
-            # elif t < T:
-            #     if not evidMat[sensorid,t+1]:
-            #         betas = cpdParams[sensor][1]
-            #         indexInBetaVec = np.where(parents == sensor+rvCount)
-            #         impact_factor += betas[indexInBetaVec]
+                    #  the next time slice is irrelevant of the current/prediction time slice
+                    # elif t < T:
+                    #     if not evidMat[sensorid,t+1]:
+                    #         betas = cpdParams[sensor][1]
+                    #         indexInBetaVec = np.where(parents == sensor+rvCount)
+                    #         impact_factor += betas[indexInBetaVec]
         return impact_factor
 
 class UNCSampling(object):

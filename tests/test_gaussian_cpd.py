@@ -13,7 +13,7 @@ from utils.readdata import convert_time_window_df_randomvar_hour
 from joint.gaussian_DBN import GaussianDBN
 from utils.metropolis_hastings import MetropolisHastings
 import utils.properties
-from ai.selection_strategy import StrategyFactory  # RandomStrategy2, SlidingWindow, ImpactBased
+from ai.selection_strategy import StrategyFactory, ImpactBased  # RandomStrategy2, SlidingWindow, ImpactBased
 from utils.toolkit import standard_error
 from data.humidity_data_preprocess import HumidityProcessor
 
@@ -532,20 +532,20 @@ def testActiveInferenceGaussianDBNParallel():
     T = utils.properties.timeSpan
     numTrials = utils.properties.numTrials
 
-    trainset1, testset1 = convert_time_window_df_randomvar_hour(True,
+    trainset, testset = convert_time_window_df_randomvar_hour(True,
                                                              Neighborhood.itself_previous_others_current)
 
-    hp = HumidityProcessor()
-    hp.read_data(to_be_pickled=True)
-    hp.digitize_data(to_be_pickled=True)
-    hp.window_data(to_be_pickled=True)
-    hp.create_time_window_df_hour_feature(to_be_pickled=True)
-    hp.add_day_to_time_window_df_hour()
-    hp.train_test_split_by_day_hour(to_be_pickled=True)
-    trainset2, testset2 = hp.convert_time_window_df_randomvar_hour(True,
-                                                             Neighborhood.itself_previous_others_current)
-    trainset = np.append(trainset1, trainset2, axis=0)
-    testset = np.append(testset1, testset2, axis=0)
+    # hp = HumidityProcessor()
+    # hp.read_data(to_be_pickled=True)
+    # hp.digitize_data(to_be_pickled=True)
+    # hp.window_data(to_be_pickled=True)
+    # hp.create_time_window_df_hour_feature(to_be_pickled=True)
+    # hp.add_day_to_time_window_df_hour()
+    # hp.train_test_split_by_day_hour(to_be_pickled=True)
+    # trainset2, testset2 = hp.convert_time_window_df_randomvar_hour(True,
+    #                                                          Neighborhood.itself_previous_others_current)
+    # trainset = np.append(trainset1, trainset2, axis=0)
+    # testset = np.append(testset1, testset2, axis=0)
 
     gdbn = GaussianDBN()
     gdbn.fit(trainset, topology=topology)
@@ -567,15 +567,15 @@ def testActiveInferenceGaussianDBNParallel():
         if not os.path.exists(errorpath):
             os.makedirs(errorpath)
         print 'trial:'
-        selection_strategy_class = StrategyFactory.generate_selection_strategy()
+        selection_strategy_name = utils.properties.selectionStrategy  # StrategyFactory.generate_selection_strategy()
         if 0.0 == obsrate:
             trial = 0
-            parameterList.append((trial, gdbn, selection_strategy_class, T, tWin, sensormeans,
+            parameterList.append((trial, gdbn, selection_strategy_name, T, tWin, sensormeans,
                                   testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
                                   evidencepath, predictionpath, errorpath))
         else:
             for trial in range(numTrials):
-                parameterList.append((trial, gdbn, selection_strategy_class, T, tWin, sensormeans,
+                parameterList.append((trial, gdbn, selection_strategy_name, T, tWin, sensormeans,
                                       testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
                                       evidencepath, predictionpath, errorpath))
 
@@ -622,19 +622,19 @@ def trialFuncStar(allParams):
     trialFunc(*allParams)
 
 
-def trialFunc(trial, gdbn, selectionStrategyClass, T, tWin, sensormeans, testset, Y_test_allT,
+def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, sensormeans, testset, Y_test_allT,
                 sampleSize, burnInCount, topology, obsrate, obsCount,
                 evidencepath, predictionpath, errorpath):
     print 'obsrate {} trial {}'.format(obsrate, trial)
     evidMat = np.zeros(shape=(gdbn.rvCount, T), dtype=np.bool_)
-    # selectionStrategy = selectionStrategyClass(pool=gdbn.sortedids, seed=trial)
-    selectionStrategy = selectionStrategyClass(gdbn.sortedids, gdbn.parentDict, gdbn.childDict,
-                                               gdbn.cpdParams, gdbn.rvCount)
+    selectionStrategy = StrategyFactory.generate_selection_strategy(selection_strategy_name, seed=trial,
+                                                                    pool=gdbn.sortedids, parentDict=gdbn.parentDict,
+                                                                    childDict=gdbn.childDict, cpdParams=gdbn.cpdParams,
+                                                                    rvCount=gdbn.rvCount)
     predResults = np.empty(shape=(gdbn.rvCount, T))
     errResults = np.empty(shape=(T,6))
     for t in range(T):
-        # selectees = selectionStrategy.choices(obsCount)
-        selectees = selectionStrategy.choices(obsCount,t,evidMat)
+        selectees = selectionStrategy.choices(count_selectees=obsCount,t=t,evidMat=evidMat)
         evidMat[selectees,t] = True
         if t < tWin:
             Y_test = Y_test_allT[:,:t+1]
