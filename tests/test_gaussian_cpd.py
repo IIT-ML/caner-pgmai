@@ -16,6 +16,7 @@ import utils.properties
 from ai.selection_strategy import StrategyFactory, ImpactBased  # RandomStrategy2, SlidingWindow, ImpactBased
 from utils.toolkit import standard_error
 from data.humidity_data_preprocess import HumidityProcessor
+from data.data_provider import DataProvider
 
 import numpy as np
 import cPickle
@@ -532,9 +533,8 @@ def testActiveInferenceGaussianDBNParallel():
     T = utils.properties.timeSpan
     numTrials = utils.properties.numTrials
 
-    trainset, testset = convert_time_window_df_randomvar_hour(True,
-                                                             Neighborhood.itself_previous_others_current)
-
+    # trainset, testset = convert_time_window_df_randomvar_hour(True,
+    #                                                          Neighborhood.itself_previous_others_current)
     # hp = HumidityProcessor()
     # hp.read_data(to_be_pickled=True)
     # hp.digitize_data(to_be_pickled=True)
@@ -546,6 +546,8 @@ def testActiveInferenceGaussianDBNParallel():
     #                                                          Neighborhood.itself_previous_others_current)
     # trainset = np.append(trainset1, trainset2, axis=0)
     # testset = np.append(testset1, testset2, axis=0)
+
+    trainset, testset = DataProvider.provide_data()
 
     gdbn = GaussianDBN()
     gdbn.fit(trainset, topology=topology)

@@ -47,4 +47,8 @@ selectionStrategy = 'netImpactBased'
 
 dbn_topology = 'k2_bin5' #, 'k2_bin10', 'mst', 'mst_enriched', 'imt'
 
+# data = 'temperature'
+# data = 'humidity'
+data = 'temperature+humidity'
+
 
