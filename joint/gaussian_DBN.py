@@ -9,6 +9,7 @@ from utils.metropolis_hastings import MetropolisHastings
 from utils import readdata
 import utils.properties
 from utils.readdata import convert_time_window_df_randomvar_hour
+from data.data_provider import DataProvider
 
 import numpy as np
 from scipy.stats import norm
@@ -64,10 +65,9 @@ class GaussianDBN(MLRegModel):
             self.setParentsByMST(absround)
         elif topology == 'mst_enriched':
             self.setParentsByMST_enriched(absround)
-        elif topology == 'k2_bin10':
-            self.setParentsByK2(binCount=10)
-        elif topology == 'k2_bin5':
-            self.setParentsByK2(binCount=5)
+        elif topology == 'k2_bin10' or topology == 'k2_bin5':
+            topology_file_path = DataProvider.get_topology_file_path()
+            self.setParentsByK2(topology_file_path)
         else:
             raise ValueError('topology should be either imt, or mst or mst_enriched.')
         self.cpdParams = np.empty(shape=self.means.shape + (2,), dtype=tuple)
@@ -193,7 +193,14 @@ class GaussianDBN(MLRegModel):
                 self.parentDict[currentid] = list()
                 self.parentDict[currentid].append(currentid + 50)
 
-    def setParentsByK2(self, binCount):
+    def setParentsByK2(self, topology_file_path):
+        self.sortedids = range(self.rvCount)
+        (self.parentDict,self.childDict) = cpk.load(open(topology_file_path,'rb'))
+        for key in self.parentDict:
+            self.parentDict[key].append(key + self.rvCount)
+
+
+    def setParentsByK2_backup(self, binCount):
         self.sortedids = range(self.rvCount)
         if 10 == binCount:
             (self.parentDict,self.childDict) = cpk.load(

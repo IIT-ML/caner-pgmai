@@ -11,18 +11,18 @@ import numpy as np
 ts = time.time()
 
 # temperature data
-# k2bin10StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150911/' + \
-#                                       'parentChildDicts_k2_bin10.pkl'
-k2bin5StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151023/' + \
+temperature_k2_bin10_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150911/' + \
+                                      'parentChildDicts_k2_bin10.pkl'
+temperature_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151023/' + \
                                      'parentChildDicts_k2_bin5.pkl'
 
 # humidity
-# k2bin5StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151102/' + \
-#                                      'humidity_parentChildDicts_k2_bin5.pkl'
+humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151102/' + \
+                                     'humidity_parentChildDicts_k2_bin5.pkl'
 
 # temperature + humidity
-# k2bin5StructureParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151103/' + \
-#                                      'temp_humid_parentChildDicts_k2_bin5.pkl'
+temperature_humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/' + \
+                                     'experiments/20151103/temp_humid_parentChildDicts_k2_bin5.pkl'
 
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151103/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'

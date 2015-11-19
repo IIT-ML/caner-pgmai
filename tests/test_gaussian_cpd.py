@@ -552,7 +552,8 @@ def testActiveInferenceGaussianDBNParallel():
     gdbn = GaussianDBN()
     gdbn.fit(trainset, topology=topology)
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
-    sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl', 'rb'))
+    # sensormeans = cPickle.load(open(readdata.DATA_DIR_PATH + 'sensormeans.pkl', 'rb'))
+    sensormeans = None
     parameterList = list()
     sampleSize = utils.properties.mh_sampleSize
     burnInCount = utils.properties.mh_burnInCount
@@ -624,9 +625,8 @@ def trialFuncStar(allParams):
     trialFunc(*allParams)
 
 
-def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, sensormeans, testset, Y_test_allT,
-                sampleSize, burnInCount, topology, obsrate, obsCount,
-                evidencepath, predictionpath, errorpath):
+def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, sensormeans, testset, Y_test_allT, sampleSize, burnInCount, topology,
+              obsrate, obsCount, evidencepath, predictionpath, errorpath):
     print 'obsrate {} trial {}'.format(obsrate, trial)
     evidMat = np.zeros(shape=(gdbn.rvCount, T), dtype=np.bool_)
     selectionStrategy = StrategyFactory.generate_selection_strategy(selection_strategy_name, seed=trial,
@@ -646,9 +646,12 @@ def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, sensormeans, testse
             Y_test = Y_test_allT[:,t+1-tWin:t+1]
             testMat = testset[:,t+1-tWin:t+1]
             curEvidMat = evidMat[:,t+1-tWin:t+1]
-        startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
+        if sensormeans is not None:
+            startupVals = np.repeat(sensormeans.reshape(-1,1),Y_test.shape[1],axis=1)
+        else:
+            startupVals = None
         Y_pred = gdbn.predict(Y_test,curEvidMat, obsrate, trial, t, sampleSize=sampleSize,
-                                 burnInCount=burnInCount)
+                                 burnInCount=burnInCount, startupVals=startupVals)
         predResults[:,t] = Y_pred[:,-1]
         errResults[t,0] = gdbn.compute_mean_absolute_error(testMat[:,-1], Y_pred[:,-1],
                                     type_=0, evidence_mat=curEvidMat[:,-1])
