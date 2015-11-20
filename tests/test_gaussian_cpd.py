@@ -573,14 +573,19 @@ def testActiveInferenceGaussianDBNParallel():
         selection_strategy_name = utils.properties.selectionStrategy  # StrategyFactory.generate_selection_strategy()
         if 0.0 == obsrate:
             trial = 0
-            parameterList.append((trial, gdbn, selection_strategy_name, T, tWin, sensormeans,
-                                  testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
-                                  evidencepath, predictionpath, errorpath))
+            parameterList.append({'trial': trial, 'gdbn': gdbn, 'selection_strategy_name': selection_strategy_name,
+                                  'T': T, 'tWin': tWin, 'testset': testset, 'Y_test_allT': Y_test_allT,
+                                  'sampleSize': sampleSize, 'burnInCount': burnInCount, 'topology': topology,
+                                  'obsrate': obsrate, 'obsCount': obsCount, 'evidencepath': evidencepath,
+                                  'predictionpath': predictionpath, 'errorpath': errorpath})
         else:
             for trial in range(numTrials):
-                parameterList.append((trial, gdbn, selection_strategy_name, T, tWin, sensormeans,
-                                      testset, Y_test_allT, sampleSize, burnInCount, topology, obsrate, obsCount,
-                                      evidencepath, predictionpath, errorpath))
+                sensormeans=np.zeros((50,96))
+                parameterList.append({'trial': trial, 'gdbn': gdbn, 'selection_strategy_name': selection_strategy_name,
+                                  'T': T, 'tWin': tWin, 'testset': testset, 'Y_test_allT': Y_test_allT,
+                                  'sampleSize': sampleSize, 'burnInCount': burnInCount, 'topology': topology,
+                                  'obsrate': obsrate, 'obsCount': obsCount, 'evidencepath': evidencepath,
+                                  'predictionpath': predictionpath, 'errorpath': errorpath, 'sensormeans': sensormeans})
 
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     pool.map(trialFuncStar, parameterList)
@@ -622,11 +627,11 @@ def testActiveInferenceGaussianDBNParallel():
 
 
 def trialFuncStar(allParams):
-    trialFunc(*allParams)
+    trialFunc(**allParams)
 
 
-def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, sensormeans, testset, Y_test_allT, sampleSize, burnInCount, topology,
-              obsrate, obsCount, evidencepath, predictionpath, errorpath):
+def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, testset, Y_test_allT, sampleSize, burnInCount,
+              topology, obsrate, obsCount, evidencepath, predictionpath, errorpath, sensormeans=None):
     print 'obsrate {} trial {}'.format(obsrate, trial)
     evidMat = np.zeros(shape=(gdbn.rvCount, T), dtype=np.bool_)
     selectionStrategy = StrategyFactory.generate_selection_strategy(selection_strategy_name, seed=trial,
