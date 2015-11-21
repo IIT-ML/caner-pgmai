@@ -585,7 +585,7 @@ def testActiveInferenceGaussianDBNParallel():
                                   'T': T, 'tWin': tWin, 'testset': testset, 'Y_test_allT': Y_test_allT,
                                   'sampleSize': sampleSize, 'burnInCount': burnInCount, 'topology': topology,
                                   'obsrate': obsrate, 'obsCount': obsCount, 'evidencepath': evidencepath,
-                                  'predictionpath': predictionpath, 'errorpath': errorpath, 'sensormeans': sensormeans})
+                                  'predictionpath': predictionpath, 'errorpath': errorpath})
 
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     pool.map(trialFuncStar, parameterList)

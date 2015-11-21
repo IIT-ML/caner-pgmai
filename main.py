@@ -10,9 +10,10 @@ from joint.iterative_regressor import IRAModel
 from ai.selection_strategy import RandomStrategy,UNCSampling
 from utils.node import Neighborhood
 from independent.local_mean_regressor import LocalMeanRegressor
-from tests.test_gaussian_cpd import testActiveInferenceGaussianDBNParallel
+# from tests.test_gaussian_cpd import testActiveInferenceGaussianDBNParallel
 from utils.toolkit import print_experiment_parameters_to_file
 from independent.gaussian_process import GaussianProcessLocal
+from ai.experiment import testActiveInferenceGaussianDBNParallel
 
 import numpy as np
 import cPickle
@@ -271,8 +272,8 @@ def apply_func_to_coords(coord_list, shape, func=None):
 if __name__ == '__main__':
     print_experiment_parameters_to_file()
     # GaussianProcessLocal.runActiveInference()
+    # testActiveInferenceGaussianDBNParallel()
     testActiveInferenceGaussianDBNParallel()
-
 
 # main_IRA()
 
