@@ -10,6 +10,7 @@ from joint.gaussian_DBN import GaussianDBN
 from data.data_provider import DataProvider
 from ai.selection_strategy import StrategyFactory
 from utils.toolkit import standard_error
+from independent.gaussian_process import GaussianProcessLocal
 
 
 def testActiveInferenceGaussianDBNParallel():
@@ -22,15 +23,20 @@ def testActiveInferenceGaussianDBNParallel():
 
     trainset, testset = DataProvider.provide_data()
 
-    gdbn = GaussianDBN()
-    gdbn.fit(trainset, topology=topology)
+    if 'gp' == utils.properties.prediction_model:
+        prediction_model = GaussianProcessLocal()
+    elif 'dgbn' == utils.properties.prediction_model:
+        prediction_model = GaussianDBN()
+    else:
+        raise ValueError('Unrecognized prediction model name')
+    prediction_model.fit(trainset, load=True, topology=topology)
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
     parameterList = list()
     sampleSize = utils.properties.mh_sampleSize
     burnInCount = utils.properties.mh_burnInCount
     for obsrate in utils.properties.obsrateList:
         print 'obsrate: {}'.format(obsrate)
-        obsCount = int(obsrate * gdbn.rvCount)
+        obsCount = int(obsrate * prediction_model.rvCount)
         evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
         if not os.path.exists(evidencepath):
             os.makedirs(evidencepath)
@@ -44,14 +50,15 @@ def testActiveInferenceGaussianDBNParallel():
         selection_strategy_name = utils.properties.selectionStrategy
         if 0.0 == obsrate:
             trial = 0
-            parameterList.append({'trial': trial, 'gdbn': gdbn, 'selection_strategy_name': selection_strategy_name,
-                                  'T': T, 'tWin': tWin, 'testset': testset, 'Y_test_allT': Y_test_allT,
-                                  'sampleSize': sampleSize, 'burnInCount': burnInCount, 'topology': topology,
-                                  'obsrate': obsrate, 'obsCount': obsCount, 'evidencepath': evidencepath,
+            parameterList.append({'trial': trial, 'prediction_model': prediction_model,
+                                  'selection_strategy_name': selection_strategy_name, 'T': T, 'tWin': tWin,
+                                  'testset': testset, 'Y_test_allT': Y_test_allT, 'sampleSize': sampleSize,
+                                  'burnInCount': burnInCount, 'topology': topology, 'obsrate': obsrate,
+                                  'obsCount': obsCount, 'evidencepath': evidencepath,
                                   'predictionpath': predictionpath, 'errorpath': errorpath})
         else:
             for trial in range(numTrials):
-                parameterList.append({'trial': trial, 'gdbn': gdbn,
+                parameterList.append({'trial': trial, 'prediction_model': prediction_model,
                                       'selection_strategy_name': selection_strategy_name, 'T': T, 'tWin': tWin,
                                       'testset': testset, 'Y_test_allT': Y_test_allT, 'sampleSize': sampleSize,
                                       'burnInCount': burnInCount, 'topology': topology, 'obsrate': obsrate,
@@ -96,19 +103,21 @@ def trialFuncStar(allParams):
     trialFunc(**allParams)
 
 
-def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, testset, Y_test_allT, sampleSize, burnInCount,
+def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset, Y_test_allT, sampleSize, burnInCount,
               topology, obsrate, obsCount, evidencepath, predictionpath, errorpath, sensormeans=None):
     print 'obsrate {} trial {}'.format(obsrate, trial)
-    evidMat = np.zeros(shape=(gdbn.rvCount, T), dtype=np.bool_)
+    evidMat = np.zeros(shape=(prediction_model.rvCount, T), dtype=np.bool_)
     selectionStrategy = StrategyFactory.generate_selection_strategy(selection_strategy_name, seed=trial,
-                                                                    pool=gdbn.sortedids, parentDict=gdbn.parentDict,
-                                                                    childDict=gdbn.childDict, cpdParams=gdbn.cpdParams,
-                                                                    rvCount=gdbn.rvCount)
-    predResults = np.empty(shape=(gdbn.rvCount, T))
+                                                                    pool=prediction_model.sortedids,
+                                                                    parentDict=prediction_model.parentDict,
+                                                                    childDict=prediction_model.childDict,
+                                                                    cpdParams=prediction_model.cpdParams,
+                                                                    rvCount=prediction_model.rvCount)
+    predResults = np.empty(shape=(prediction_model.rvCount, T))
     errResults = np.empty(shape=(T, 6))
     for t in range(T):
-        selectees = selectionStrategy.choices(count_selectees=obsCount, t=t,evidMat=evidMat)
-        evidMat[selectees,t] = True
+        selectees = selectionStrategy.choices(count_selectees=obsCount, t=t, evidMat=evidMat)
+        evidMat[selectees, t] = True
         if t < tWin:
             Y_test = Y_test_allT[:, :t+1]
             testMat = testset[:, :t+1]
@@ -121,21 +130,21 @@ def trialFunc(trial, gdbn, selection_strategy_name, T, tWin, testset, Y_test_all
             startupVals = np.repeat(sensormeans.reshape(-1, 1), Y_test.shape[1], axis=1)
         else:
             startupVals = None
-        Y_pred = gdbn.predict(Y_test, curEvidMat, obsrate, trial, t, sampleSize=sampleSize,
-                              burnInCount=burnInCount, startupVals=startupVals)
+        Y_pred = prediction_model.predict(testMat, curEvidMat, sampleSize=sampleSize, burnInCount=burnInCount,
+                                          startupVals=startupVals, obsrate=obsrate, trial=trial, t=t)
         predResults[:, t] = Y_pred[:, -1]
-        errResults[t, 0] = gdbn.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
-                                    type_=0, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 1] = gdbn.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
-                                    type_=0, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 2] = gdbn.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
-                                    type_=1, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 3] = gdbn.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
-                                    type_=1, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 4] = gdbn.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
-                                    type_=2, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 5] = gdbn.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
-                                    type_=2, evidence_mat=curEvidMat[:, -1])
+        errResults[t, 0] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
+                                                                        type_=0, evidence_mat=curEvidMat[:, -1])
+        errResults[t, 1] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
+                                                                       type_=0, evidence_mat=curEvidMat[:, -1])
+        errResults[t, 2] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
+                                                                        type_=1, evidence_mat=curEvidMat[:, -1])
+        errResults[t, 3] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
+                                                                       type_=1, evidence_mat=curEvidMat[:, -1])
+        errResults[t, 4] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
+                                                                        type_=2, evidence_mat=curEvidMat[:, -1])
+        errResults[t, 5] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
+                                                                       type_=2, evidence_mat=curEvidMat[:, -1])
     np.savetxt(evidencepath +
                '{}_activeInf_gaussianDBN_T={}_trial={}_obsrate={}.csv'.
                format('evidMat', T, trial, obsrate),

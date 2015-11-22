@@ -20,7 +20,12 @@ import os
 
 
 class GaussianProcessLocal(MLRegModel):
-    def fit(self, train_mat, load=False):
+    def __init__(self):
+        super(GaussianProcessLocal, self).__init__()
+        self.gpmat = object()
+
+    def fit(self, train_mat, load=False, **kwargs):
+        self.sortedids = range(train_mat.shape[0])
         if load:
             tempgp = cpk.load(open(DATA_DIR_PATH + 'gaussianProcessLocal.pkl', 'rb'))
             self.gpmat = tempgp.gpmat
@@ -40,32 +45,17 @@ class GaussianProcessLocal(MLRegModel):
                                                   random_start=100)
                 self.gpmat[row].fit(Xtrain[row, :48].reshape(-1, 1), ytrain_mean[row])
 
-    def __init__(self):
-        self.gpmat = object()
-
-    def predict(self, test_mat, evid_mat=None):
-        if evid_mat is None:
-            evid_mat = np.zeros(shape=test_mat.shape, dtype=np.bool_)
+    def predict(self, test_mat, evid_mat, **kwargs):
         Xtest = np.vectorize(lambda x: x.local_feature_vector)(test_mat)
         ytest = np.vectorize(lambda x: x.true_label)(test_mat)
-
         ypred = np.empty(shape=ytest.shape, dtype=ytest.dtype)
-
         row_count = Xtest.shape[0]
-
-        # gp.predict(Xtest)
         for row in range(row_count):
             if evid_mat[row]:
                 ypred[row] = ytest[row]
             else:
                 ypred[row] = self.gpmat[row].predict(Xtest[row].reshape(-1, 1))
         return ypred
-
-    #     def compute_mean_absolute_error(self):
-    #         raise NotImplementedError
-    #
-    #     def copute_mean_squared_error(self):
-    #         raise NotImplementedError
 
     def compute_accuracy(self, Y_test, Y_pred):
         raise NotImplementedError

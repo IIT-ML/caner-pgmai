@@ -18,11 +18,13 @@ class MLRegModel(MLModel):
     classdocs
     '''
 
+    def __init__(self, **kwargs):
+        self.rvCount = None
+        self.sortedids = None
+        self.parentDict = None
+        self.childDict = None
+        self.cpdParams = None
 
-    def __init__(self, params):
-        '''
-        Constructor
-        '''
     def __prepare_prediction_for_evaluation(self,test_set,Y_pred, type_=0,
                                             evidence_mat=None):
         assert test_set.shape == Y_pred.shape,'Test set and predicted label'+\

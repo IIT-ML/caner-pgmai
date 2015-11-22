@@ -37,7 +37,7 @@ class MLModel(object):
     Same as fit() function
     '''
     @abstractmethod
-    def predict(self,test_mat): #return Y
+    def predict(self, test_mat, evid_mat, **kwargs): #return Y
         pass
     
     @abstractmethod

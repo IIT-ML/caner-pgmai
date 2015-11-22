@@ -38,7 +38,7 @@ class GaussianDBN(MLRegModel):
         self.means = np.empty(shape=0)
 
 
-    def fit(self, trainset, topology='original'):
+    def fit(self, trainset, topology='original', **kwargs):
         '''
         Parameters
         trainset: It has to be a 2D matrix. Each entry should be a rv object,
@@ -327,21 +327,22 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
     
-    def predict(self, testMat, evidMat, obsrate, trial, t, sampleSize=2000, burnInCount=1000,
-                samplingPeriod=2, startupVals=None):
+    def predict(self, testMat, evidMat, sampleSize=2000, burnInCount=1000, samplingPeriod=2, startupVals=None,
+                obsrate=0.0, trial=0, t=0):
         T = evidMat.shape[1]
         if startupVals is None:
             # startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
             startupVals = np.repeat(self.means.reshape(-1, 1), T, axis=1)
         else:
             assert testMat.shape==startupVals.shape, 'testMat and startupVals shapes don\'t match'
+        ytest = np.vectorize(lambda x: x.true_label)(testMat)
 #         width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
 #              0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
 #              0.6,1.5,1.4,1.5,0.5,0.5]
         width = utils.properties.mh_startupWidth
         metropolisHastings = MetropolisHastings()
         (data,accList,propVals,accCount,burnInCount, widthMat) = metropolisHastings.sampleTemporal(
-            self.sortedids, self.parentDict, self.cpdParams, startupVals, evidMat, testMat,
+            self.sortedids, self.parentDict, self.cpdParams, startupVals, evidMat, ytest,
             sampleSize=sampleSize, burnInCount=burnInCount, samplingPeriod=samplingPeriod,
             proposalDist='uniform', width=width, tuneWindow=utils.properties.mh_tuneWindow)
         # cpk.dump((data,accList,propVals,accCount,burnInCount,widthMat), open(utils.properties.outputDirPath +
