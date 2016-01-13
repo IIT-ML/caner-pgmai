@@ -49,12 +49,11 @@ class GaussianProcessLocal(MLRegModel):
         Xtest = np.vectorize(lambda x: x.local_feature_vector)(test_mat)
         ytest = np.vectorize(lambda x: x.true_label)(test_mat)
         ypred = np.empty(shape=ytest.shape, dtype=ytest.dtype)
-        row_count = Xtest.shape[0]
-        for row in range(row_count):
-            if evid_mat[row]:
-                ypred[row] = ytest[row]
+        for rvid in range(self.rvCount):
+            if evid_mat[rvid, -1]:
+                ypred[rvid, -1] = ytest[rvid, -1]
             else:
-                ypred[row] = self.gpmat[row].predict(Xtest[row].reshape(-1, 1))
+                ypred[rvid, -1] = self.gpmat[rvid].predict(Xtest[rvid, -1].reshape(-1, 1))
         return ypred
 
     def compute_accuracy(self, Y_test, Y_pred):

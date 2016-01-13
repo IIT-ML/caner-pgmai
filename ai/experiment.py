@@ -29,13 +29,14 @@ def testActiveInferenceGaussianDBNParallel():
         prediction_model = GaussianDBN()
     else:
         raise ValueError('Unrecognized prediction model name')
-    prediction_model.fit(trainset, load=True, topology=topology)
+    print 'Prediction model selected: ', prediction_model.__class__
+    prediction_model.fit(trainset, topology=topology)
+    print 'Prediction model was trained.'
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
     parameterList = list()
     sampleSize = utils.properties.mh_sampleSize
     burnInCount = utils.properties.mh_burnInCount
     for obsrate in utils.properties.obsrateList:
-        print 'obsrate: {}'.format(obsrate)
         obsCount = int(obsrate * prediction_model.rvCount)
         evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
         if not os.path.exists(evidencepath):
@@ -46,7 +47,6 @@ def testActiveInferenceGaussianDBNParallel():
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
         if not os.path.exists(errorpath):
             os.makedirs(errorpath)
-        print 'trial:'
         selection_strategy_name = utils.properties.selectionStrategy
         if 0.0 == obsrate:
             trial = 0
@@ -65,36 +65,41 @@ def testActiveInferenceGaussianDBNParallel():
                                       'obsCount': obsCount, 'evidencepath': evidencepath,
                                       'predictionpath': predictionpath, 'errorpath': errorpath})
 
+    print 'Tasks for parallel computation were created.'
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
+    print 'Tasks in parallel are being started.'
     pool.map(trialFuncStar, parameterList)
 
     for obsrate in utils.properties.obsrateList:
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
         if 0.0 == obsrate:
             trial = 0
-            errResults = np.loadtxt(errorpath + 'mae_activeInfo_gaussianDBN_topology=' +
-                                    '{}_window={}_T={}_obsRate={}_trial={}.csv'.
-                                    format(topology,tWin,T,obsrate, trial), delimiter=',')
+            errResults = np.loadtxt(errorpath +
+                                    'mae_activeInfo_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                                    format(utils.properties.prediction_model, topology, tWin, T, obsrate,
+                                                          trial), delimiter=',')
             np.savetxt(errorpath +
-                   'meanMAE_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                   format(topology, tWin, T, obsrate, 'mean'), errResults, delimiter=',')
+                       'meanMAE_activeInf_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                       format(utils.properties.prediction_model, topology, tWin, T, obsrate, 'mean'),
+                       errResults, delimiter=',')
             np.savetxt(errorpath +
-                       'stderrMAE_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                       format(topology, tWin, T, obsrate, 'mean'), np.zeros(shape=errResults.shape), delimiter=',')
+                       'stderrMAE_activeInf_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                       format(utils.properties.prediction_model, topology, tWin, T, obsrate, 'mean'),
+                       np.zeros(shape=errResults.shape), delimiter=',')
         else:
             errResults = np.empty(shape=(numTrials, T, 6))
             for trial in range(numTrials):
-                errResults[trial] = np.loadtxt(errorpath +
-                                               'mae_activeInfo_gaussianDBN_topology=' +
-                                               '{}_window={}_T={}_obsRate={}_trial={}.csv'.
-                                               format(topology,tWin,T,obsrate, trial), delimiter=',')
+                errResults[trial] = np.loadtxt(errorpath + ('mae_activeInfo_model={}_topology={}_window={}_' +
+                                               'T={}_obsRate={}_trial={}.csv').
+                                               format(utils.properties.prediction_model, topology,tWin,T,obsrate,
+                                               trial), delimiter=',')
             np.savetxt(errorpath +
-                       'meanMAE_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                       format(topology,tWin,T,obsrate, 'mean'),
+                       'meanMAE_activeInf_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                       format(utils.properties.prediction_model, topology,tWin,T,obsrate, 'mean'),
                        np.mean(errResults,axis=0), delimiter=',')
             np.savetxt(errorpath +
-                       'stderrMAE_activeInf_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                       format(topology,tWin,T,obsrate, 'mean'),
+                       'stderrMAE_activeInf_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+                       format(utils.properties.prediction_model, topology,tWin,T,obsrate, 'mean'),
                        standard_error(errResults, axis=0), delimiter=',')
     print 'End of process, duration: {} secs'.format(time() - start)
 
