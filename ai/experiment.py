@@ -11,6 +11,7 @@ from data.data_provider import DataProvider
 from ai.selection_strategy import StrategyFactory
 from utils.toolkit import standard_error
 from independent.gaussian_process import GaussianProcessLocal
+from independent.multivariate_discrete_kalman_filter import MultivariateDiscreteKalmanFilter
 
 
 def testActiveInferenceGaussianDBNParallel():
@@ -27,6 +28,8 @@ def testActiveInferenceGaussianDBNParallel():
         prediction_model = GaussianProcessLocal()
     elif 'dgbn' == utils.properties.prediction_model:
         prediction_model = GaussianDBN()
+    elif 'kf' == utils.properties.prediction_model:
+        prediction_model = MultivariateDiscreteKalmanFilter()
     else:
         raise ValueError('Unrecognized prediction model name')
     print 'Prediction model selected: ', prediction_model.__class__
@@ -151,14 +154,14 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
         errResults[t, 5] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
                                                                        type_=2, evidence_mat=curEvidMat[:, -1])
     np.savetxt(evidencepath +
-               '{}_activeInf_gaussianDBN_T={}_trial={}_obsrate={}.csv'.
-               format('evidMat', T, trial, obsrate),
+               '{}_activeInf_model={}_T={}_trial={}_obsrate={}.csv'.
+               format('evidMat', utils.properties.prediction_model, T, trial, obsrate),
                evidMat, delimiter=',')
     np.savetxt(predictionpath +
-               '{}_activeInf_gaussianDBN_T={}_trial={}_obsRate={}.csv'.
-               format('predResults', T, trial, obsrate),
+               '{}_activeInf_model={}_T={}_trial={}_obsRate={}.csv'.
+               format('predResults', utils.properties.prediction_model, T, trial, obsrate),
                predResults, delimiter=',')
     np.savetxt(errorpath +
-               '{}_activeInfo_gaussianDBN_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-               format('mae', topology, tWin, T, obsrate, trial),
+               '{}_activeInfo_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
+               format('mae', utils.properties.prediction_model, topology, tWin, T, obsrate, trial),
                errResults, delimiter=',')

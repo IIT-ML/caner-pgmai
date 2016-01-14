@@ -30,7 +30,7 @@ class MLModel(object):
     train_mat should be a two dimentional matrix composed of RandomVarNode
     '''
     @abstractmethod
-    def fit(self,train_mat):
+    def fit(self, train_mat):
         pass
      
     '''
@@ -41,11 +41,11 @@ class MLModel(object):
         pass
     
     @abstractmethod
-    def compute_accuracy(self,Y_test,Y_pred):
+    def compute_accuracy(self, Y_test, Y_pred):
         pass
 
     @abstractmethod
-    def compute_confusion_matrix(self,Y_test,Y_pred):
+    def compute_confusion_matrix(self, Y_test, Y_pred):
         pass
 
 
