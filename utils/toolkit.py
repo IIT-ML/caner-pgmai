@@ -22,7 +22,7 @@ def standard_error(sample_array, axis=0):
 
 
 def print_experiment_parameters_to_file():
-    file_name = utils.properties.outputDirPath + 'experimentParameters.txt'
+    file_name = utils.properties.outputDirPath + 'experimentParameters' + utils.properties.timeStamp + '.txt'
     if not os.path.exists(utils.properties.outputDirPath):
             os.makedirs(utils.properties.outputDirPath)
     f = open(file_name,'wb')

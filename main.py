@@ -13,7 +13,7 @@ from independent.local_mean_regressor import LocalMeanRegressor
 # from tests.test_gaussian_cpd import testActiveInferenceGaussianDBNParallel
 from utils.toolkit import print_experiment_parameters_to_file
 from independent.gaussian_process import GaussianProcessLocal
-from ai.experiment import testActiveInferenceGaussianDBNParallel
+from ai.experiment import testActiveInferenceGaussianDBNParallel, computeErrorIndependently
 
 import numpy as np
 import cPickle
@@ -262,18 +262,19 @@ def apply_func_to_coords(coord_list, shape, func=None):
     marked_mat = np.zeros(shape=(row_count,col_count),dtype=np.bool8)
     if func is None:
         for coord in coord_list:
-            marked_mat[coord[0],coord[1]] = True
+            marked_mat[coord[0], coord[1]] = True
     else:
         for coord in coord_list:
-            marked_mat[coord[0],coord[1]] = func(marked_mat[coord[0],coord[1]])
+            marked_mat[coord[0], coord[1]] = func(marked_mat[coord[0],coord[1]])
     return marked_mat
 
 
 if __name__ == '__main__':
     print_experiment_parameters_to_file()
     # GaussianProcessLocal.runActiveInference()
-    # testActiveInferenceGaussianDBNParallel()
     testActiveInferenceGaussianDBNParallel()
+    # computeErrorIndependently()
+
 
 # main_IRA()
 

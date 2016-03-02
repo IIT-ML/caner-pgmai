@@ -3,7 +3,7 @@ from pykalman import KalmanFilter
 from models.ml_reg_model import MLRegModel
 
 import numpy as np
-
+import math
 
 class MultivariateDiscreteKalmanFilter(MLRegModel):
     def __init__(self):
@@ -25,10 +25,13 @@ class MultivariateDiscreteKalmanFilter(MLRegModel):
             ytrain = np.vectorize(lambda instance: instance.true_label)(train_mat[sensorid])
             dataMeans = np.mean(ytrain.reshape(-1, 48).T, axis=1)
             self.observations[sensorid] = np.tile(dataMeans, 3)
+            # self.observations[sensorid] = np.vectorize(lambda instance: instance.local_feature_vector)(
+            #         train_mat[sensorid])
+            # self.observations[sensorid] = np.tile(np.arange(0.0, 2 * math.pi, 2 * math.pi / 48), 3)
             data = np.vstack((ytrain[:-1], ytrain[1:], self.observations[sensorid, 1:]))
             cpdParams = self.__getCpdParams(data)
             transition_matrix = cpdParams[1][1]
-            observation_matrix = cpdParams[2][1]
+            observation_matrix = 0  # cpdParams[2][1]
             transition_offset = cpdParams[1][0][0, 0]
             observation_offset = cpdParams[2][0][0, 0]
             transition_covariance = cpdParams[1][2]
