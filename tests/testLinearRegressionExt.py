@@ -51,7 +51,7 @@ def computeTransitionParametersCompleteNetwork(train_mat):
     return beta, sigmasq
 
 
-def main():
+def computeBetasSigmasqs():
     neighborhood_def = Neighborhood.itself_previous_others_current
     train_set, test_set = convert_time_window_df_randomvar(True, neighborhood_def)
 
@@ -66,7 +66,19 @@ def main():
     ))
 
 
-main()
+def computeMeanCov():
+    neighborhood_def = Neighborhood.itself_previous_others_current
+    train_set, test_set = convert_time_window_df_randomvar(True, neighborhood_def)
+
+    train_mat = np.vectorize(lambda x: x.true_label)(train_set)
+    mu = np.mean(train_mat, axis=1)
+    sigmasq = np.var(train_mat, axis=1)
+    pickle.dump((mu, sigmasq), open(
+            'C:\\Users\\ckomurlu\\Documents\\workbench\\experiments\\20160301\\initialSliceParameters.pkl', 'wb'
+    ))
+    return mu, sigmasq
+
+computeMeanCov()
 
 # Checking how much data represents a normal distribution
 # print 'Symmetry of data around mean'

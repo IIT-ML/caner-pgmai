@@ -12,6 +12,7 @@ from ai.selection_strategy import StrategyFactory
 from utils.toolkit import standard_error
 from independent.gaussian_process import GaussianProcessLocal
 from independent.multivariate_discrete_kalman_filter import MultivariateDiscreteKalmanFilter
+from independent.linear_chain import LinearChain
 
 
 def testActiveInferenceGaussianDBNParallel():
@@ -30,6 +31,8 @@ def testActiveInferenceGaussianDBNParallel():
         prediction_model = GaussianDBN()
     elif 'kf' == utils.properties.prediction_model:
         prediction_model = MultivariateDiscreteKalmanFilter()
+    elif 'lc' == utils.properties.prediction_model:
+        prediction_model = LinearChain()
     else:
         raise ValueError('Unrecognized prediction model name')
     print 'Prediction model selected: ', prediction_model.__class__
@@ -72,6 +75,7 @@ def testActiveInferenceGaussianDBNParallel():
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     print 'Tasks in parallel are being started.'
     pool.map(trialFuncStar, parameterList)
+    # trialFuncStar(parameterList[0])
 
     for obsrate in utils.properties.obsrateList:
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
