@@ -1,3 +1,5 @@
+from sklearn.linear_model import Ridge
+
 from utils.node import Neighborhood
 from utils.readdata import convert_time_window_df_randomvar
 from models.LinearRegressionExt import LinearRegressionExt
@@ -7,11 +9,11 @@ import pickle
 
 def computeTransitionParametersLinearChain(train_mat):
     sensorCount = train_mat.shape[0]
-    beta = np.zeros(shape=(sensorCount,2), dtype=np.float_)
+    beta = np.zeros(shape=(sensorCount, 2), dtype=np.float_)
     sigmasq = np.zeros(shape=sensorCount, dtype=np.float_)
     for sensor in range(sensorCount):
-        X = train_mat[sensor, :-1].reshape(-1,1)
-        y = train_mat[sensor, 1:].reshape(-1,1)
+        X = train_mat[sensor, :-1].reshape(-1, 1)
+        y = train_mat[sensor, 1:].reshape(-1, 1)
 
         degree = 1
         reg = LinearRegressionExt(degree=degree)
@@ -78,7 +80,35 @@ def computeMeanCov():
     ))
     return mu, sigmasq
 
-computeMeanCov()
+
+def computeRidgeCoefficients():
+    neighborhood_def = Neighborhood.itself_previous_others_current
+    train_set, test_set = convert_time_window_df_randomvar(True, neighborhood_def)
+
+    train_mat = np.vectorize(lambda x: x.true_label)(train_set)
+    sensorCount = train_mat.shape[0]
+    beta = np.zeros(shape=(sensorCount,2), dtype=np.float_)
+    sigmasq = np.zeros(shape=sensorCount, dtype=np.float_)
+    for sensor in range(sensorCount):
+        X = train_mat[sensor, :-1].reshape(-1, 1)
+        y = train_mat[sensor, 1:].reshape(-1, 1)
+        reg = Ridge()
+        reg.fit(X,y)
+        beta[sensor, 0] = reg.intercept_
+        beta[sensor, 1:] = reg.coef_
+        y_pred = reg.predict(X)
+        err = y - y_pred
+        # print err
+
+        # mu = np.mean(err.reshape(-1))
+        var = np.cov(err.reshape(-1))
+        # stddev = np.std(err.reshape(-1))
+        sigmasq[sensor] = var
+    pickle.dump((beta, sigmasq), open(
+            'C:\\Users\\ckomurlu\\Documents\\workbench\\experiments\\20160301\\ridgeLinearChainParameters.pkl', 'wb'
+    ))
+
+computeRidgeCoefficients()
 
 # Checking how much data represents a normal distribution
 # print 'Symmetry of data around mean'

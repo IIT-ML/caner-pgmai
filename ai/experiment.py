@@ -31,8 +31,12 @@ def testActiveInferenceGaussianDBNParallel():
         prediction_model = GaussianDBN()
     elif 'kf' == utils.properties.prediction_model:
         prediction_model = MultivariateDiscreteKalmanFilter()
-    elif 'lc' == utils.properties.prediction_model:
-        prediction_model = LinearChain()
+    elif 'lc-linear' == utils.properties.prediction_model:
+        prediction_model = LinearChain(regressionMethod='linear')
+    elif 'lc-ridge' == utils.properties.prediction_model:
+        prediction_model = LinearChain(regressionMethod='ridge')
+    elif 'lc-lasso' == utils.properties.prediction_model:
+        prediction_model = LinearChain(regressionMethod='lasso')
     else:
         raise ValueError('Unrecognized prediction model name')
     print 'Prediction model selected: ', prediction_model.__class__
