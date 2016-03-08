@@ -88,7 +88,7 @@ class LinearChain(MLRegModel):
                     predictedVariance[sensor, t] = 0.0
                 else:
                     predictedMean[sensor, t] = self.cpdParams[sensor][1][0] +\
-                                               ytest[sensor, t-1] * self.cpdParams[sensor][1][1]
+                                               predictedMean[sensor, t-1] * self.cpdParams[sensor][1][1]
                     predictedVariance[sensor, t] = predictedVariance[sensor, t-1] *\
                                                    (self.cpdParams[sensor][1][1] ** 2) + self.cpdParams[sensor][1][2]
         return predictedMean  #, predictedVariance
