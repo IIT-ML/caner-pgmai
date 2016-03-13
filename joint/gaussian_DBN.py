@@ -101,7 +101,7 @@ class GaussianDBN(MLRegModel):
             for child in children:
                 self.parentDict[child].append(cur)
             grey += children.tolist()
-        
+
             indicesInRow = np.where(np.array(rowList) == cur)
             children = colList[indicesInRow[0]]
             rowList = np.delete(rowList,indicesInRow[0])
@@ -112,8 +112,8 @@ class GaussianDBN(MLRegModel):
         for key in self.parentDict:
             self.parentDict[key].append(key + self.rvCount)
         self.sortedids = black
-        
-        
+
+
     def setParentsByMST_enriched(self, absround):
         raise NotImplementedError('This topology has implementation problems.')
         self.parentDict = dict()
@@ -140,7 +140,7 @@ class GaussianDBN(MLRegModel):
                         mstEdges[sortedInd[j],i] = True
                     colList = np.hstack((colList,[i]))
                     rowList = np.hstack((rowList,[sortedInd[j]]))
-#                     rowList.append(sortedInd[j]) 
+#                     rowList.append(sortedInd[j])
 #                     self.parentDict[i].append(sortedInd[j])
                     break
         grey = set([startidx])
@@ -165,7 +165,7 @@ class GaussianDBN(MLRegModel):
         self.sortedids = black
         for key in self.parentDict:
             self.parentDict[key].append(key + self.rvCount)
-    
+
     def setParentsByThreshold(self, absround):
         (a,b) = np.nonzero(absround > 24.3)
         condict = dict()
@@ -221,7 +221,7 @@ class GaussianDBN(MLRegModel):
                 graph[edge[1]] = list()
             graph[edge[1]].append(edge[0])
         return graph
-    
+
     def __computeCondGauss_bkp(self, sensid, parentDict, mea, cova, initial=False):
 #     try:
 #         parents = parentDict[sensid]
@@ -243,7 +243,7 @@ class GaussianDBN(MLRegModel):
         b = np.dot(XXinv,YX)
         sigsq = YY - np.dot(np.dot(YX,XXinv),XY.reshape(-1,1))
         return b0,b,sigsq[0]
-    
+
     def __computeCondGauss(self, sensid, parentDict, mea, cova, initial=False):
 #     try:
 #         parents = parentDict[sensid]
@@ -266,7 +266,7 @@ class GaussianDBN(MLRegModel):
         b = np.dot(XXinv,XY)
         sigsq = YY - np.dot(np.dot(YX,XXinv),XY.reshape(-1,1))
         return b0,b,sigsq[0]
-    
+
     def likelihoodWeighting(self, evidMap, testset, sampleSize=100):
         if not evidMap.shape[0] == len(self.sortedids):
             raise ValueError('Evidence map doesn\'t have appropriate dimension for sensors')
@@ -296,7 +296,7 @@ class GaussianDBN(MLRegModel):
 #                         print currentCoef
                         sampleWeight *= currentCoef.reshape(-1)
                         logSampleWeight += np.log(currentCoef.reshape(-1))
-                else:            
+                else:
                     sampleStorage[currentSample,currentid,0] = \
                         np.random.normal(currentmean,var**.5)
             for t in xrange(1,numSlice):
@@ -326,7 +326,7 @@ class GaussianDBN(MLRegModel):
 #             print sampleWeight
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
-    
+
     def predict(self, testMat, evidMat, sampleSize=2000, burnInCount=1000, samplingPeriod=2, startupVals=None,
                 obsrate=0.0, trial=0, t=0):
         T = evidMat.shape[1]
@@ -350,8 +350,9 @@ class GaussianDBN(MLRegModel):
         #     self.topology,sampleSize,obsrate,trial,t,utils.properties.timeStamp),'wb'))
         dataarr = np.array(data)
         muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
-        return muData
-        
+        sigmasqData = np.var(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
+        return muData, sigmasqData
+
     def predict_incorrect(self, testset, evidence_mat=None):
         Y_true = np.vectorize(lambda x: x.true_label)(testset)
         if evidence_mat is None:
@@ -387,7 +388,7 @@ class GaussianDBN(MLRegModel):
                 currentmean = b0 + np.dot(b.T,parentValues)
                 Y_pred[currentid,t] = currentmean
         return Y_pred
-    
+
     def predictTrial(self,testset, evidence_mat=None):
         Y_true = np.vectorize(lambda x: x.true_label)(testset)
         if evidence_mat is None:
@@ -404,13 +405,13 @@ class GaussianDBN(MLRegModel):
                 except ValueError as valueError:
                     print valueError
         return Y_pred
-        
+
 #     def compute_mean_absolute_error(self,test_set,Y_pred, type_=0, evidence_mat=None):
 #         super(GaussianDBN,self).compute_mean_absolute_error(test_set,Y)
-        
+
     def compute_accuracy(self, Y_test, Y_pred):
         raise NotImplementedError('Method compute_accuracy() is not yet implemented.')
-    
+
     def compute_confusion_matrix(self, Y_test, Y_pred):
         raise NotImplementedError('Method compute_confusion_matrix() is not yet implemented.')
 
@@ -424,7 +425,7 @@ class GaussianDBN(MLRegModel):
             if not parentset.issubset(self.sortedids[:i]):
                 raise ValueError('parents are not in former positions for '+
                                  str(curid))
-    
+
     def forwardSampling(self, evidMat, testMat, sampleSize = 10000, T=96):
         rvCount = len(self.sortedids)
         sampleStorage = np.empty(shape = (sampleSize,len(self.sortedids),T),

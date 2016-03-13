@@ -24,6 +24,8 @@ class StrategyFactory(object):
             selection_strategy_class = ImpactBased
         elif 'netImpactBased' == utils.properties.selectionStrategy:
             selection_strategy_class = NetImpactBased
+        elif 'varianceBased' == utils.properties.selectionStrategy:
+            selection_strategy_class = VarianceBased
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
                              'utils.propoerties.')
@@ -210,6 +212,21 @@ class NetImpactBased(ImpactBased):
                     #         indexInBetaVec = np.where(parents == sensor+rvCount)
                     #         impact_factor += betas[indexInBetaVec]
         return impact_factor
+
+
+class VarianceBased(AbstractSelectionStrategy):
+    def __init__(self, **kwargs):
+        self.mostRecentSelectees = None
+
+    def choices(self, count_selectees, varianceList, **kwargs):
+        sortedIds = np.argsort(varianceList)
+        sortedIds = sortedIds[::-1]
+        self.mostRecentSelectees = sortedIds[:count_selectees]
+        return self.mostRecentSelectees
+
+    def __str__(self):
+        return 'most recent selectees: ' + str(self.mostRecentSelectees)
+
 
 class UNCSampling(object):
     '''

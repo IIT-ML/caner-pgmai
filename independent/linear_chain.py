@@ -91,7 +91,7 @@ class LinearChain(MLRegModel):
                                                predictedMean[sensor, t-1] * self.cpdParams[sensor][1][1]
                     predictedVariance[sensor, t] = predictedVariance[sensor, t-1] *\
                                                    (self.cpdParams[sensor][1][1] ** 2) + self.cpdParams[sensor][1][2]
-        return predictedMean  #, predictedVariance
+        return predictedMean, predictedVariance
 
     def predict_backup(self, testMat, evidMat, **kwargs):
         ytest = np.vectorize(lambda x: x.true_label)(testMat)

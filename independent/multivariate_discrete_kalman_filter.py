@@ -55,14 +55,17 @@ class MultivariateDiscreteKalmanFilter(MLRegModel):
                     self.kf[sensorid].filter_update(self.initial_state_means[sensorid],
                                                     self.initial_state_covariances[sensorid],
                                                     self.observations[sensorid, -1]))
+            if evid_mat[sensorid, 0]:
+                ypred[sensorid, 0] = ytest[sensorid, 0]
+                covpredict[sensorid, 0] = 0
             for t in range(n_time_steps-1):
                 ypred[sensorid, t+1], covpredict[sensorid, t+1] = (
                     self.kf[sensorid].filter_update(ypred[sensorid, t], covpredict[sensorid, t],
                                                     self.observations[sensorid, t+1]))
                 if evid_mat[sensorid, t+1]:
                     ypred[sensorid, t+1] = ytest[sensorid, t+1]
-        return ypred
-
+                    covpredict[sensorid, t+1] = 0
+        return ypred, covpredict
 
     def compute_accuracy(self, Y_test, Y_pred):
         raise NotImplementedError

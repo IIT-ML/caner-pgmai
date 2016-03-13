@@ -51,9 +51,12 @@ def testActiveInferenceGaussianDBNParallel():
         evidencepath = utils.properties.outputDirPath + str(obsrate) + '/evidences/'
         if not os.path.exists(evidencepath):
             os.makedirs(evidencepath)
-        predictionpath = utils.properties.outputDirPath + str(obsrate) + '/predictions/'
-        if not os.path.exists(predictionpath):
-            os.makedirs(predictionpath)
+        meanPredictionPath = utils.properties.outputDirPath + str(obsrate) + '/predictions/mean/'
+        if not os.path.exists(meanPredictionPath):
+            os.makedirs(meanPredictionPath)
+        varPredictionPath = utils.properties.outputDirPath + str(obsrate) + '/predictions/var/'
+        if not os.path.exists(varPredictionPath):
+            os.makedirs(varPredictionPath)
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
         if not os.path.exists(errorpath):
             os.makedirs(errorpath)
@@ -65,7 +68,8 @@ def testActiveInferenceGaussianDBNParallel():
                                   'testset': testset, 'Y_test_allT': Y_test_allT, 'sampleSize': sampleSize,
                                   'burnInCount': burnInCount, 'topology': topology, 'obsrate': obsrate,
                                   'obsCount': obsCount, 'evidencepath': evidencepath,
-                                  'predictionpath': predictionpath, 'errorpath': errorpath})
+                                  'meanPredictionPath': meanPredictionPath, 'varPredictionPath': varPredictionPath,
+                                  'errorpath': errorpath})
         else:
             for trial in range(numTrials):
                 parameterList.append({'trial': trial, 'prediction_model': prediction_model,
@@ -73,7 +77,8 @@ def testActiveInferenceGaussianDBNParallel():
                                       'testset': testset, 'Y_test_allT': Y_test_allT, 'sampleSize': sampleSize,
                                       'burnInCount': burnInCount, 'topology': topology, 'obsrate': obsrate,
                                       'obsCount': obsCount, 'evidencepath': evidencepath,
-                                      'predictionpath': predictionpath, 'errorpath': errorpath})
+                                      'meanPredictionPath': meanPredictionPath, 'varPredictionPath': varPredictionPath,
+                                      'errorpath': errorpath})
 
     print 'Tasks for parallel computation were created.'
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
@@ -120,7 +125,8 @@ def trialFuncStar(allParams):
 
 
 def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset, Y_test_allT, sampleSize, burnInCount,
-              topology, obsrate, obsCount, evidencepath, predictionpath, errorpath, sensormeans=None):
+              topology, obsrate, obsCount, evidencepath, meanPredictionPath, varPredictionPath, errorpath,
+              sensormeans=None):
     print 'obsrate {} trial {}'.format(obsrate, trial)
     evidMat = np.zeros(shape=(prediction_model.rvCount, T), dtype=np.bool_)
     selectionStrategy = StrategyFactory.generate_selection_strategy(selection_strategy_name, seed=trial,
@@ -129,7 +135,8 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
                                                                     childDict=prediction_model.childDict,
                                                                     cpdParams=prediction_model.cpdParams,
                                                                     rvCount=prediction_model.rvCount)
-    predResults = np.empty(shape=(prediction_model.rvCount, T))
+    meanPredResults = np.empty(shape=(prediction_model.rvCount, T))
+    varPredResults = np.empty(shape=(prediction_model.rvCount, T))
     errResults = np.empty(shape=(T, 6))
     for t in range(T):
         selectees = selectionStrategy.choices(count_selectees=obsCount, t=t, evidMat=evidMat)
@@ -146,29 +153,34 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
             startupVals = np.repeat(sensormeans.reshape(-1, 1), Y_test.shape[1], axis=1)
         else:
             startupVals = None
-        Y_pred = prediction_model.predict(testMat, curEvidMat, sampleSize=sampleSize, burnInCount=burnInCount,
+        Ymeanpred, Yvarpred = prediction_model.predict(testMat, curEvidMat, sampleSize=sampleSize, burnInCount=burnInCount,
                                           startupVals=startupVals, obsrate=obsrate, trial=trial, t=t)
-        predResults[:, t] = Y_pred[:, -1]
-        errResults[t, 0] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
+        meanPredResults[:, t] = Ymeanpred[:, -1]
+        varPredResults[:, t] = Yvarpred[:, -1]
+        errResults[t, 0] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Ymeanpred[:, -1],
                                                                         type_=0, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 1] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
+        errResults[t, 1] = prediction_model.compute_mean_squared_error(testMat[:, -1], Ymeanpred[:, -1],
                                                                        type_=0, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 2] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
+        errResults[t, 2] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Ymeanpred[:, -1],
                                                                         type_=1, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 3] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
+        errResults[t, 3] = prediction_model.compute_mean_squared_error(testMat[:, -1], Ymeanpred[:, -1],
                                                                        type_=1, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 4] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Y_pred[:, -1],
+        errResults[t, 4] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Ymeanpred[:, -1],
                                                                         type_=2, evidence_mat=curEvidMat[:, -1])
-        errResults[t, 5] = prediction_model.compute_mean_squared_error(testMat[:, -1], Y_pred[:, -1],
+        errResults[t, 5] = prediction_model.compute_mean_squared_error(testMat[:, -1], Ymeanpred[:, -1],
                                                                        type_=2, evidence_mat=curEvidMat[:, -1])
     np.savetxt(evidencepath +
                '{}_activeInf_model={}_T={}_trial={}_obsrate={}.csv'.
                format('evidMat', utils.properties.prediction_model, T, trial, obsrate),
                evidMat, delimiter=',')
-    np.savetxt(predictionpath +
+    np.savetxt(meanPredictionPath +
                '{}_activeInf_model={}_T={}_trial={}_obsRate={}.csv'.
                format('predResults', utils.properties.prediction_model, T, trial, obsrate),
-               predResults, delimiter=',')
+               meanPredResults, delimiter=',')
+    np.savetxt(varPredictionPath +
+               '{}_activeInf_model={}_T={}_trial={}_obsRate={}.csv'.
+               format('predResults', utils.properties.prediction_model, T, trial, obsrate),
+               varPredResults, delimiter=',')
     np.savetxt(errorpath +
                '{}_activeInfo_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
                format('mae', utils.properties.prediction_model, topology, tWin, T, obsrate, trial),

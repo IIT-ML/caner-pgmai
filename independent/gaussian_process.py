@@ -41,20 +41,24 @@ class GaussianProcessLocal(MLRegModel):
             self.rvCount = Xtrain.shape[0]
             self.gpmat = np.empty(shape=(self.rvCount,), dtype=np.object_)
             for row in range(self.rvCount):
-                self.gpmat[row] = GaussianProcess(corr='cubic', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
-                                                  random_start=100)
+                # self.gpmat[row] = GaussianProcess(corr='cubic', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
+                #                                   random_start=100)
+                self.gpmat[row] = GaussianProcess(corr='linear', theta0=1e-2, thetaL=1e-4, thetaU=1e-1, random_start=100)
                 self.gpmat[row].fit(Xtrain[row, :48].reshape(-1, 1), ytrain_mean[row])
 
     def predict(self, test_mat, evid_mat, **kwargs):
         Xtest = np.vectorize(lambda x: x.local_feature_vector)(test_mat)
         ytest = np.vectorize(lambda x: x.true_label)(test_mat)
-        ypred = np.empty(shape=ytest.shape, dtype=ytest.dtype)
+        ymeanpred = np.empty(shape=ytest.shape, dtype=ytest.dtype)
+        yvarpred = np.empty(shape=ytest.shape, dtype=ytest.dtype)
         for rvid in range(self.rvCount):
             if evid_mat[rvid, -1]:
-                ypred[rvid, -1] = ytest[rvid, -1]
+                ymeanpred[rvid, -1] = ytest[rvid, -1]
+                yvarpred[rvid, -1] = 0
             else:
-                ypred[rvid, -1] = self.gpmat[rvid].predict(Xtest[rvid, -1].reshape(-1, 1))
-        return ypred
+                ymeanpred[rvid, -1], yvarpred[rvid, -1] = self.gpmat[rvid].predict(Xtest[rvid, -1].reshape(-1, 1),
+                                                                                   eval_MSE = True)
+        return ymeanpred, yvarpred
 
     def compute_accuracy(self, Y_test, Y_pred):
         raise NotImplementedError
