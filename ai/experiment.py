@@ -139,7 +139,9 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
     varPredResults = np.empty(shape=(prediction_model.rvCount, T))
     errResults = np.empty(shape=(T, 6))
     for t in range(T):
-        selectees = selectionStrategy.choices(count_selectees=obsCount, t=t, evidMat=evidMat)
+        selectees = selectionStrategy.choices(count_selectees=obsCount, predictionModel=prediction_model, t=t,
+                                              testMat=testMat, evidMat=evidMat, sampleSize=sampleSize,
+                                              burnInCount=burnInCount, startupVals=startupVals)
         evidMat[selectees, t] = True
         if t < tWin:
             Y_test = Y_test_allT[:, :t+1]
@@ -153,8 +155,9 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
             startupVals = np.repeat(sensormeans.reshape(-1, 1), Y_test.shape[1], axis=1)
         else:
             startupVals = None
-        Ymeanpred, Yvarpred = prediction_model.predict(testMat, curEvidMat, sampleSize=sampleSize, burnInCount=burnInCount,
-                                          startupVals=startupVals, obsrate=obsrate, trial=trial, t=t)
+        Ymeanpred, Yvarpred = prediction_model.predict(testMat, curEvidMat, sampleSize=sampleSize,
+                                                       burnInCount=burnInCount, startupVals=startupVals)
+                                                       # obsrate=obsrate, trial=trial, t=t)
         meanPredResults[:, t] = Ymeanpred[:, -1]
         varPredResults[:, t] = Yvarpred[:, -1]
         errResults[t, 0] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Ymeanpred[:, -1],

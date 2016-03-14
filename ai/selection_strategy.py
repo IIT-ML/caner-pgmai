@@ -171,6 +171,7 @@ class ImpactBased(AbstractSelectionStrategy):
     def __str__(self):
         return '[pool: ' + str(self.pool) + ', rv count: ' + str(self.rvCount) + ']'
 
+
 class NetImpactBased(ImpactBased):
     def _computeSensorImpact(self, sensor, t, evid_mat):
         if 0 == t:
@@ -218,7 +219,10 @@ class VarianceBased(AbstractSelectionStrategy):
     def __init__(self, **kwargs):
         self.mostRecentSelectees = None
 
-    def choices(self, count_selectees, varianceList, **kwargs):
+    def choices(self, count_selectees, predictionModel, testMat, curEvidMat, sampleSize, burnInCount,
+                startupVals, **kwargs):
+        Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, sampleSize=sampleSize,
+                                                      burnInCount=burnInCount, startupVals=startupVals)
         sortedIds = np.argsort(varianceList)
         sortedIds = sortedIds[::-1]
         self.mostRecentSelectees = sortedIds[:count_selectees]
