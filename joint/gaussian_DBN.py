@@ -327,15 +327,21 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
 
-    def predict(self, testMat, evidMat, sampleSize=2000, burnInCount=1000, samplingPeriod=2, startupVals=None,
-                obsrate=0.0, trial=0, t=0):
+    def predict(self, testMat, evidMat, tWin, sampleSize=2000, burnInCount=1000, samplingPeriod=2, startupVals=None,
+                obsrate=0.0, trial=0, t=0, **kwargs):
+        if t < tWin:
+            testset = testMat[:, :t+1]
+            curEvidMat = evidMat[:, :t+1]
+        else:
+            testset = testMat[:, t+1-tWin:t+1]
+            curEvidMat = evidMat[:, t+1-tWin:t+1]
         T = evidMat.shape[1]
         if startupVals is None:
             # startupVals = np.ones((self.rvCount,T),dtype=np.float_)*20
             startupVals = np.repeat(self.means.reshape(-1, 1), T, axis=1)
         else:
-            assert testMat.shape==startupVals.shape, 'testMat and startupVals shapes don\'t match'
-        ytest = np.vectorize(lambda x: x.true_label)(testMat)
+            assert testset.shape==startupVals.shape, 'testset and startupVals shapes don\'t match'
+        ytest = np.vectorize(lambda x: x.true_label)(testset)
 #         width = [0.4,0.3,0.3,0.4,0.2,0.3,0.2,0.3,0.3,0.8,0.8,1.6,1,0.9,0.4,0.5,0.4,0.5,0.6,0.3,0.4,1.1,
 #              0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.8,0.9,0.7,0.9,0.3,0.7,0.7,0.4,0.4,0.6,0.4,1.2,0.5,0.5,1,
 #              0.6,1.5,1.4,1.5,0.5,0.5]

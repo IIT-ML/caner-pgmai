@@ -24,6 +24,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from models.LinearRegressionExt import LinearRegressionExt
 from sklearn.externals.joblib.parallel import Parallel
 
+
 def main_IRA():
     begin = time()
     neighborhood_def = Neighborhood.itself_previous_others_current
@@ -70,6 +71,7 @@ def main_IRA():
         Y_pred = iraModel.predict_with_neighbors_true_labels(test_set)
         print iraModel.compute_mean_absolute_error(test_set, Y_pred, type_=0)
     print
+
 
 def main_regression():
     begin = time()
@@ -128,6 +130,7 @@ def main_regression():
 #                     iter_count,
 #                     current_trial):
 
+
 def active_inf_loop_4_regression(iraModel,
                     train_set,
                     test_set, pool,
@@ -170,6 +173,7 @@ def active_inf_loop_4_regression(iraModel,
         results[current_trial,rate_idx,5] = iraModel.\
                         compute_mean_absolute_error(test_set, Y_pred, type_=2,
                                                    evidence_mat=evidence_mat)
+
 
 def main_classify():
     begin = time()
@@ -214,6 +218,7 @@ def main_classify():
     print 'Duration: ',time() - begin
     print 'Process ended'
 
+
 def active_inf_loop(local_classifier_name,
                     relat_classifier_name,
                     use_local_features,
@@ -256,6 +261,7 @@ def active_inf_loop(local_classifier_name,
                         test_set, Y_pred, type_=1,evidence_mat=evidence_mat)
         results[current_trial,rate_idx,2] = icaModel.compute_accuracy(
                         test_set, Y_pred, type_=2,evidence_mat=evidence_mat)
+
 
 def apply_func_to_coords(coord_list, shape, func=None):
     row_count, col_count = shape

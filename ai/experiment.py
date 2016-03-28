@@ -83,8 +83,8 @@ def testActiveInferenceGaussianDBNParallel():
     print 'Tasks for parallel computation were created.'
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     print 'Tasks in parallel are being started.'
-    pool.map(trialFuncStar, parameterList)
-    # trialFuncStar(parameterList[0])
+    # pool.map(trialFuncStar, parameterList)
+    trialFuncStar(parameterList[0])
 
     for obsrate in utils.properties.obsrateList:
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
@@ -139,25 +139,23 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
     varPredResults = np.empty(shape=(prediction_model.rvCount, T))
     errResults = np.empty(shape=(T, 6))
     for t in range(T):
-        selectees = selectionStrategy.choices(count_selectees=obsCount, predictionModel=prediction_model, t=t,
-                                              testMat=testMat, evidMat=evidMat, sampleSize=sampleSize,
-                                              burnInCount=burnInCount, startupVals=startupVals)
+        testMat = testset[:, :t+1]
+        curEvidMat = evidMat[:, :t+1]
+        selectees = selectionStrategy.choices(count_selectees=obsCount, curEvidMat=curEvidMat, t=t,
+                                              predictionModel=prediction_model, testMat=testMat, sampleSize=sampleSize,
+                                              burnInCount=burnInCount, tWin=tWin)
+        # selectees = selectionStrategy.choices(count_selectees=obsCount, predictionModel=prediction_model, t=t,
+        #                                       testMat=testMat, evidMat=evidMat, sampleSize=sampleSize,
+        #                                       burnInCount=burnInCount, startupVals=startupVals)
         evidMat[selectees, t] = True
-        if t < tWin:
-            Y_test = Y_test_allT[:, :t+1]
-            testMat = testset[:, :t+1]
-            curEvidMat = evidMat[:, :t+1]
-        else:
-            Y_test = Y_test_allT[:, t+1-tWin:t+1]
-            testMat = testset[:, t+1-tWin:t+1]
-            curEvidMat = evidMat[:, t+1-tWin:t+1]
-        if sensormeans is not None:
-            startupVals = np.repeat(sensormeans.reshape(-1, 1), Y_test.shape[1], axis=1)
-        else:
-            startupVals = None
-        Ymeanpred, Yvarpred = prediction_model.predict(testMat, curEvidMat, sampleSize=sampleSize,
-                                                       burnInCount=burnInCount, startupVals=startupVals)
-                                                       # obsrate=obsrate, trial=trial, t=t)
+        curEvidMat = evidMat[:, :t+1]
+        # if sensormeans is not None:
+        #     startupVals = np.repeat(sensormeans.reshape(-1, 1), testMat.shape[1], axis=1)
+        # else:
+        #     startupVals = None
+        Ymeanpred, Yvarpred = prediction_model.predict(testMat, curEvidMat, tWin=tWin, sampleSize=sampleSize,
+                                                       burnInCount=burnInCount, t=t)
+                                                       # obsrate=obsrate, trial=trial, startupVals=startupVals)
         meanPredResults[:, t] = Ymeanpred[:, -1]
         varPredResults[:, t] = Yvarpred[:, -1]
         errResults[t, 0] = prediction_model.compute_mean_absolute_error(testMat[:, -1], Ymeanpred[:, -1],
