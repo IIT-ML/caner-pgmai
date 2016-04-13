@@ -26,6 +26,8 @@ class StrategyFactory(object):
             selection_strategy_class = NetImpactBased
         elif 'varianceBased' == utils.properties.selectionStrategy:
             selection_strategy_class = VarianceBased
+        elif 'varianceBased2' == utils.properties.selectionStrategy:
+            selection_strategy_class = VarianceBased2
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
                              'utils.propoerties.')
@@ -49,9 +51,11 @@ class StrategyFactory(object):
                                              rvCount=kwargs['rvCount'])
         elif 'varianceBased' == strategy_name:
             selection_strategy = VarianceBased()
+        elif 'varianceBased2' == strategy_name:
+            selection_strategy = VarianceBased2()
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
-                             'utils.propoerties.')
+                             'utils.properties.')
         return selection_strategy
 
 
@@ -235,19 +239,19 @@ class VarianceBased(AbstractSelectionStrategy):
         return 'most recent selectees: ' + str(self.mostRecentSelectees)
 
 
-# class VarianceBased2(AbstractSelectionStrategy):
-#     def __init__(self, **kwargs):
-#         self.mostRecentSelectees = None
-#
-#     def choices(self, count_selectees, curEvidMat, t, predictionModel, **kwargs):
-#         varianceList = predictionModel.computeVar(curEvidMat)
-#         sortedIds = np.argsort(varianceList)
-#         sortedIds = sortedIds[::-1]
-#         self.mostRecentSelectees = sortedIds[:count_selectees]
-#         return self.mostRecentSelectees
-#
-#     def __str__(self):
-#         return 'most recent selectees: ' + str(self.mostRecentSelectees)
+class VarianceBased2(AbstractSelectionStrategy):
+    def __init__(self, **kwargs):
+        self.mostRecentSelectees = None
+
+    def choices(self, count_selectees, curEvidMat, t, predictionModel, **kwargs):
+        varianceList = predictionModel.computeVar(curEvidMat)
+        sortedIds = np.argsort(varianceList)
+        sortedIds = sortedIds[::-1]
+        self.mostRecentSelectees = sortedIds[:count_selectees]
+        return self.mostRecentSelectees
+
+    def __str__(self):
+        return 'most recent selectees: ' + str(self.mostRecentSelectees)
 
 
 class UNCSampling(object):

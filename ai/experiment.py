@@ -83,8 +83,8 @@ def testActiveInferenceGaussianDBNParallel():
     print 'Tasks for parallel computation were created.'
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     print 'Tasks in parallel are being started.'
-    # pool.map(trialFuncStar, parameterList)
-    trialFuncStar(parameterList[0])
+    pool.map(trialFuncStar, parameterList)
+    # trialFuncStar(parameterList[0])
 
     for obsrate in utils.properties.obsrateList:
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'

@@ -7,7 +7,6 @@ from models.ml_reg_model import MLRegModel
 from models.LinearRegressionExt import LinearRegressionExt
 
 
-
 class LinearChain(MLRegModel):
     def __init__(self, regressionMethod='linear'):
         super(LinearChain, self).__init__()
@@ -20,6 +19,11 @@ class LinearChain(MLRegModel):
         self.rvCount = trainset.shape[0]
         self.sortedids = range(self.rvCount)
         self.__computeCpdParams(trainset)
+
+    def fitFromFile(self, **kwargs):
+        self.rvCount = 50
+        self.sortedids = range(self.rvCount)
+        self.__loadCpdParams()
 
     def __loadCpdParams(self):
         mu, initialSigmasq = pickle.load(open(
@@ -89,34 +93,39 @@ class LinearChain(MLRegModel):
                 else:
                     predictedMean[sensor, t] = self.cpdParams[sensor][1][0] +\
                                                predictedMean[sensor, t-1] * self.cpdParams[sensor][1][1]
-                    predictedVariance[sensor, t] = predictedVariance[sensor, t-1] *\
+                    predictedVariance[sensor, t] = predictedVariance[sensor, t-1] * \
                                                    (self.cpdParams[sensor][1][1] ** 2) + self.cpdParams[sensor][1][2]
         return predictedMean, predictedVariance
 
-    # def computeVar(self, evidMat):
-
-    def predict_backup(self, testMat, evidMat, **kwargs):
-        ytest = np.vectorize(lambda x: x.true_label)(testMat)
-        predictedMean = np.empty(shape=self.rvCount)
-        predictedVariance = np.empty(shape=self.rvCount)
+    def computeVar(self, evidMat):
+        varVec = np.empty(shape=self.rvCount, dtype=np.float_)
+        T = evidMat.shape[1]
         for sensor in self.sortedids:
-            deltaT = 0
-            initialMean = self.cpdParams[sensor][0][0]
-            initialVariance = self.cpdParams[sensor][0][2]
-            for t in range(evidMat.shape[1] - 1, -1, -1):
-                if evidMat[sensor, t]:
-                    initialMean = ytest[sensor, t]
-                    initialVariance = 0
-                    break
-                deltaT += 1
-            currentMean = initialMean
-            currentVariance = initialVariance
-            for t in range(deltaT):
-                currentMean = self.cpdParams[sensor][1][0] + currentMean * self.cpdParams[sensor][1][1]
-                currentVariance = currentVariance * (self.cpdParams[sensor][1][1] ** 2) + self.cpdParams[sensor][1][2]
-            predictedMean[sensor] = currentMean
-            predictedVariance[sensor] = currentVariance
-        return predictedMean.reshape(-1, 1)
+            betasq = self.cpdParams[sensor][1][1] ** 2
+            sigmasq = self.cpdParams[sensor][1][2]
+            if 0 == evidMat[sensor, ::-1].nonzero()[0].size:
+                initialSigmasq = self.cpdParams[sensor][0][2]
+                remainingTime = T - 1
+            else:
+                initialSigmasq = 0
+                # remainingTime = T - (evidMat[sensor, ::-1].nonzero()[0][-1] + 1)
+                remainingTime = T - (T - evidMat[sensor, ::-1].nonzero()[0][-1])
+            varVec[sensor] = sigmasq * (((betasq ** remainingTime) - 1) / (betasq - 1)) + \
+                             initialSigmasq * (betasq ** remainingTime)
+        return varVec
+
+    # def computeVar(self, evidMat):
+    #     varVec = np.empty(shape=self.rvCount, dtype=np.float_)
+    #     T = evidMat.shape[1]
+    #     for sensor in self.sortedids:
+    #         betasq = self.cpdParams[sensor][1][1] ** 2
+    #         sigmasq = self.cpdParams[sensor][1][2]
+    #         try:
+    #             remainingTime = T - evidMat[sensor, ::-1].nonzero()[0][-1]
+    #         except IndexError:
+    #             remainingTime = T
+    #         varVec[sensor] = sigmasq * (((betasq ** remainingTime) - 1) / (betasq - 1))
+    #     return varVec
 
     def compute_accuracy(self, Y_test, Y_pred):
         raise NotImplementedError
