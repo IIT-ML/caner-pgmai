@@ -50,9 +50,9 @@ selectionStrategy = 'varianceBased2'
 
 dbn_topology = 'k2_bin5' #, 'k2_bin10', 'mst', 'mst_enriched', 'imt'
 
-data = 'temperature'
+# data = 'temperature'
 # data = 'humidity'
-# data = 'temperature+humidity'
+data = 'temperature+humidity'
 
 # prediction_model = 'gp'
 # prediction_model = 'kf'
