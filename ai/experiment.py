@@ -189,8 +189,8 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
 
 
 def computeErrorIndependently():
-    rvSet = range(0, 50)
-    # rvSet = range(50, 100)
+    # rvSet = range(0, 50)
+    rvSet = range(50, 100)
     T = utils.properties.timeSpan
     tWin = utils.properties.tWin
     topology = utils.properties.dbn_topology
@@ -210,7 +210,7 @@ def computeErrorIndependently():
             evidMat = np.loadtxt(evidencepath + '{}_activeInf_model={}_T={}_trial={}_obsrate={}.csv'.
                                  format('evidMat', utils.properties.prediction_model, T, trial, obsrate),
                                  delimiter=',').astype(np.bool_)
-            predResults = np.loadtxt(predictionpath + '{}_activeInf_model={}_T={}_trial={}_obsRate={}.csv'.
+            predResults = np.loadtxt(predictionpath + 'mean/{}_activeInf_model={}_T={}_trial={}_obsRate={}.csv'.
                                      format('predResults', utils.properties.prediction_model, T, trial, obsrate),
                                      delimiter=',')
             for t in range(T):
@@ -225,13 +225,13 @@ def computeErrorIndependently():
                                                                                       evidence_mat=evidMat[rvSet, t])
             np.savetxt(errorpath +
                        '{}_activeInfo_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                       format('mae', utils.properties.prediction_model, topology, tWin, T, obsrate,
+                       format('mae_humid', utils.properties.prediction_model, topology, tWin, T, obsrate,
                               trial), errResults[trial], delimiter=',')
         np.savetxt(errorpath +
                    '{}_activeInf_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                   format('meanMAE', utils.properties.prediction_model, topology,tWin,T,obsrate, 'mean'),
+                   format('meanMAE_humid', utils.properties.prediction_model, topology,tWin,T,obsrate, 'mean'),
                    np.mean(errResults, axis=0), delimiter=',')
         np.savetxt(errorpath +
                    '{}_activeInf_model={}_topology={}_window={}_T={}_obsRate={}_trial={}.csv'.
-                   format('stderrMAE', utils.properties.prediction_model, topology, tWin, T, obsrate,
+                   format('stderrMAE_humid', utils.properties.prediction_model, topology, tWin, T, obsrate,
                           'mean'), standard_error(errResults, axis=0), delimiter=',')
