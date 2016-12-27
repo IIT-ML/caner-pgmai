@@ -52,7 +52,7 @@ docs/_build/
 
 # PyBuilder
 target/
-/data/
+#/data/
 /data_/
 .project
 .pydevproject
