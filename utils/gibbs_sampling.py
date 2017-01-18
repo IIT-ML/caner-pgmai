@@ -21,7 +21,7 @@ class GibbsSampling:
         return mu, covariance_mat
 
     @staticmethod
-    def find_markov_blanket(self, current_var, parents):
+    def find_markov_blanket(current_var, parents):
         mb = parents[current_var][:]
         for rand_var in range(len(parents)):
             current_parent_list = parents[rand_var][:]
@@ -55,3 +55,7 @@ class GibbsSampling:
             sample.append(list(instance))
         sample = np.vstack(sample)
         return sample
+
+
+parents = [[3, 1], [], [1, 0], []]
+print GibbsSampling.find_markov_blanket(0, parents)

@@ -276,10 +276,10 @@ def apply_func_to_coords(coord_list, shape, func=None):
 
 
 if __name__ == '__main__':
-    # print_experiment_parameters_to_file()
+    print_experiment_parameters_to_file()
     # GaussianProcessLocal.runActiveInference()
-    # testActiveInferenceGaussianDBNParallel()
-    computeErrorIndependently()
+    testActiveInferenceGaussianDBNParallel()
+    # computeErrorIndependently()
 
 
 # main_IRA()

@@ -5,6 +5,7 @@ import utils.properties
 from data.humidity_data_preprocess import HumidityProcessor
 from utils.node import Neighborhood
 from utils import readdata
+from data import wunderground_data
 
 
 class DataProvider(object):
@@ -42,6 +43,8 @@ class DataProvider(object):
                                                                          Neighborhood.itself_previous_others_current)
             trainset = np.append(trainset1, trainset2, axis=0)
             testset = np.append(testset1, testset2, axis=0)
+        elif 'wunderground' == utils.properties.data:
+            trainset, testset = wunderground_data.split_train_test()
         else:
             raise ValueError('Unknown value for utils.properties.data: ' + utils.properties.data)
         return trainset, testset

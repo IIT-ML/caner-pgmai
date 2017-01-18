@@ -6,7 +6,7 @@ Created on Jan 14, 2015
 
 from sklearn.linear_model import LogisticRegression
 import numpy as np
-from sklearn.metrics.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix
 
 from models.ml_model import MLModel
 

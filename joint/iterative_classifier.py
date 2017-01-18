@@ -9,7 +9,7 @@ from utils.decorations import deprecated,cheating
 from utils import constants
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.svm.classes import SVC
 import numpy as np
 

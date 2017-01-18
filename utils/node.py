@@ -14,6 +14,12 @@ class RandomVarNode(object):
         self.local_feature_vector = local_feature_vector
         self.is_observed = is_observed
         self.neighbors = neighbors
+
+    def __eq__(self, other):
+        if not isinstance(other, RandomVarNode):
+            return False
+        return self.__dict__ == other.__dict__
+
     
 class SensorRVNode(RandomVarNode):
     def __init__(self, sensor_id, dig_time, day, true_label=None,
@@ -23,7 +29,12 @@ class SensorRVNode(RandomVarNode):
         self.sensor_id = sensor_id
         self.dig_time = dig_time
         self.day = day
-        
+
+    def __eq__(self, other):
+        if not isinstance(other, SensorRVNode):
+            return False
+        return self.__dict__ == other.__dict__
+
 
 #neighborhood function list
 class Neighborhood:

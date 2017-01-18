@@ -8,7 +8,7 @@ from models.ml_model import MLModel
 from utils.decorations import deprecated,cheating
 from utils import constants
 
-from sklearn.metrics.metrics import (accuracy_score, confusion_matrix,
+from sklearn.metrics import (accuracy_score, confusion_matrix,
                                     mean_squared_error,mean_absolute_error)
 import numpy as np
 from sklearn.linear_model import LinearRegression, Ridge, Lasso

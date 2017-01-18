@@ -10,7 +10,7 @@ from models.ml_model import MLModel
 from utils import constants
 from utils.decorations import deprecated
 
-from sklearn.metrics.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 class LocalMeanRegressor(MLModel):
     def __init__(self):

@@ -1,6 +1,7 @@
 from pykalman import KalmanFilter
 
 from models.ml_reg_model import MLRegModel
+import utils.properties
 
 import numpy as np
 import math
@@ -16,6 +17,8 @@ class MultivariateDiscreteKalmanFilter(MLRegModel):
         self.initial_state_covariances = np.array([])
 
     def fit(self, train_mat, **kwargs):
+        ap = utils.properties.aggregation_period
+        repeating_time = train_mat.shape[1] / ap
         self.rvCount = train_mat.shape[0]
         self.sortedids = range(self.rvCount)
         self.observations = np.empty(shape=train_mat.shape, dtype=np.float_)
@@ -23,8 +26,8 @@ class MultivariateDiscreteKalmanFilter(MLRegModel):
         self.initial_state_covariances = np.empty(shape=(self.rvCount,), dtype=np.float_)
         for sensorid in self.sortedids:
             ytrain = np.vectorize(lambda instance: instance.true_label)(train_mat[sensorid])
-            dataMeans = np.mean(ytrain.reshape(-1, 48).T, axis=1)
-            self.observations[sensorid] = np.tile(dataMeans, 3)
+            dataMeans = np.mean(ytrain.reshape(-1, ap).T, axis=1)
+            self.observations[sensorid] = np.tile(dataMeans, repeating_time)
             # self.observations[sensorid] = np.vectorize(lambda instance: instance.local_feature_vector)(
             #         train_mat[sensorid])
             # self.observations[sensorid] = np.tile(np.arange(0.0, 2 * math.pi, 2 * math.pi / 48), 3)

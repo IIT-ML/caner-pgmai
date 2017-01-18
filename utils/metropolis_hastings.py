@@ -5,7 +5,6 @@ Created on Jul 1, 2015
 '''
 import numpy as np
 from scipy.stats import norm
-from sklearn.metrics.metrics import mean_squared_error
 
 class MetropolisHastings:
     def __init__(self):
