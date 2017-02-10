@@ -140,8 +140,7 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
     errResults = np.empty(shape=(T, 6))
     for t in range(T):
         testMat = testset[:, :t+1]
-        curEvidMat = evidMat[:, :t+1]
-        selectees = selectionStrategy.choices(count_selectees=obsCount, curEvidMat=curEvidMat, t=t,
+        selectees = selectionStrategy.choices(count_selectees=obsCount, evidMat=evidMat, t=t,
                                               predictionModel=prediction_model, testMat=testMat, sampleSize=sampleSize,
                                               burnInCount=burnInCount, tWin=tWin)
         # selectees = selectionStrategy.choices(count_selectees=obsCount, predictionModel=prediction_model, t=t,

@@ -225,8 +225,9 @@ class VarianceBased(AbstractSelectionStrategy):
     def __init__(self, **kwargs):
         self.mostRecentSelectees = None
 
-    def choices(self, count_selectees, curEvidMat, t, predictionModel, testMat, sampleSize, burnInCount,
+    def choices(self, count_selectees, t, evidMat, predictionModel, testMat, sampleSize, burnInCount,
                 startupVals=None, tWin=None, **kwargs):
+        curEvidMat = evidMat[:, :t + 1]
         Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, sampleSize=sampleSize, tWin=tWin,
                                                       burnInCount=burnInCount, startupVals=startupVals, t=t)
         varianceList = Yvarpred[:, -1]
@@ -243,7 +244,7 @@ class VarianceBased2(AbstractSelectionStrategy):
     def __init__(self, **kwargs):
         self.mostRecentSelectees = None
 
-    def choices(self, count_selectees, curEvidMat, t, predictionModel, **kwargs):
+    def choices(self, count_selectees, t, curEvidMat, predictionModel, **kwargs):
         varianceList = predictionModel.computeVar(curEvidMat)
         sortedIds = np.argsort(varianceList)
         sortedIds = sortedIds[::-1]

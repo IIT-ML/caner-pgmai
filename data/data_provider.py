@@ -58,6 +58,8 @@ class DataProvider(object):
                 return utils.properties.humidity_k2_bin5_topology_ParentChildDictPath
             elif 'temperature+humidity' == utils.properties.data:
                 return utils.properties.temperature_humidity_k2_bin5_topology_ParentChildDictPath
+            elif 'wunderground' == utils.properties.data:
+                return utils.properties.wground_k2_bin5_topology_ParentChildDictPath
             else:
                 raise NotImplementedError('Unknown data identifier: Available data are temperature, humidity,' +
                                           'and temperature+humidity for now.')

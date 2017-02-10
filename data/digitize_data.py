@@ -1,3 +1,4 @@
+from data import wunderground_data
 from utils import readdata
 from utils.node import Neighborhood
 from data.humidity_data_preprocess import HumidityProcessor
@@ -8,10 +9,17 @@ __author__ = 'ckomurlu'
 
 
 def digitize_data():
+    # Intel temperature data
     # trainset, testset = readdata.convert_time_window_df_randomvar_hour(True, Neighborhood.all_others_current_time)
-    hp = HumidityProcessor()
-    trainset, testset = hp.convert_time_window_df_randomvar_hour(True,
-                                                                 Neighborhood.itself_previous_others_current)
+
+    # Intel humidity data
+    # hp = HumidityProcessor()
+    # trainset, testset = hp.convert_time_window_df_randomvar_hour(True,
+    #                                                              Neighborhood.itself_previous_others_current)
+
+    # Wunderground temperature data
+    trainset, testset = wunderground_data.split_train_test()
+
     X = np.vectorize(lambda x: x.true_label)(trainset)
     xMin = X.min()
     xMax = X.max()
@@ -20,8 +28,9 @@ def digitize_data():
     for row in X:
         digitized.append(np.digitize(row, bins))
     digitized = np.array(digitized)
-    np.savetxt('C:/Users/ckomurlu/Documents/workbench/experiments/20151102/humidity_digitized_bins=5_uniqMaxMin.txt',
-               digitized, delimiter=',')
+    np.savetxt('C:/Users/ckomurlu/Documents/workbench/data/wunderground/digitized/' +
+               'wground_digitized_bins=5_uniqMaxMin.txt', digitized, delimiter=',')
+
 
 def combine_digitized_data():
     digital_temp = np.loadtxt('C:/Users/ckomurlu/Documents/workbench/experiments/20151023/' +
@@ -32,4 +41,4 @@ def combine_digitized_data():
     np.savetxt('C:/Users/ckomurlu/Documents/workbench/experiments/20151103/humidity_digitized_bins=5_uniqMaxMin.txt',
                digital_combined, delimiter=',')
 
-combine_digitized_data()
+digitize_data()

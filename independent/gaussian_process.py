@@ -34,7 +34,7 @@ class GaussianProcessLocal(MLRegModel):
             Xtrain = np.vectorize(lambda x: x.local_feature_vector)(train_mat)
             ytrain = np.vectorize(lambda x: x.true_label)(train_mat)
 
-            ytrain_split = np.split(ytrain, 3, axis=1)
+            ytrain_split = np.split(ytrain, 59, axis=1)
             ytrain_split_array = np.array(ytrain_split)
             ytrain_mean = np.mean(ytrain_split_array, axis=0)
 
@@ -43,8 +43,8 @@ class GaussianProcessLocal(MLRegModel):
             for row in range(self.rvCount):
                 # self.gpmat[row] = GaussianProcess(corr='cubic', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
                 #                                   random_start=100)
-                self.gpmat[row] = GaussianProcess(corr='linear', theta0=1e-2, thetaL=1e-4, thetaU=1e-1, random_start=100)
-                self.gpmat[row].fit(Xtrain[row, :48].reshape(-1, 1), ytrain_mean[row])
+                self.gpmat[row] = GaussianProcess(corr='linear', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,random_start=100)
+                self.gpmat[row].fit(Xtrain[row, :4].reshape(-1, 1), ytrain_mean[row])
 
     def predict(self, test_mat, evid_mat, **kwargs):
         Xtest = np.vectorize(lambda x: x.local_feature_vector)(test_mat)

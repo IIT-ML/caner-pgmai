@@ -24,11 +24,15 @@ humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/wor
 temperature_humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/' + \
                                      'experiments/20151103/temp_humid_parentChildDicts_k2_bin5.pkl'
 
+# wunderground
+wground_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/data/wunderground/' \
+                                               'wground_parentChildDicts_k2_bin5.pkl'
+
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151103/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/wunderground/KF/SW/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20170120/wunderground/GP/RND/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 10
 
@@ -38,12 +42,12 @@ mh_tuneWindow = 50
 mh_startupWidth = 5.0
 
 tWin = 12
-timeSpan = 48
+timeSpan = 12
 obsrateList = np.arange(0.0, 0.7, 0.1)
 numTrials = 5
 
-# selectionStrategy = 'randomStrategy2'
-selectionStrategy = 'slidingWindow'
+selectionStrategy = 'randomStrategy2'
+# selectionStrategy = 'slidingWindow'
 # selectionStrategy = 'impactBased'
 # selectionStrategy = 'netImpactBased'
 # selectionStrategy = 'varianceBased'
@@ -56,8 +60,8 @@ dbn_topology = 'k2_bin5' #, 'k2_bin10', 'mst', 'mst_enriched', 'imt'
 # data = 'temperature+humidity'
 data = 'wunderground'
 
-# prediction_model = 'gp'
-prediction_model = 'kf'
+prediction_model = 'gp'
+# prediction_model = 'kf'
 # prediction_model = 'lc-linear'
 # prediction_model = 'lc-ridge'
 # prediction_model = 'lc-lasso'
