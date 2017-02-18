@@ -43,8 +43,10 @@ class DataProvider(object):
                                                                          Neighborhood.itself_previous_others_current)
             trainset = np.append(trainset1, trainset2, axis=0)
             testset = np.append(testset1, testset2, axis=0)
-        elif 'wunderground' == utils.properties.data:
-            trainset, testset = wunderground_data.split_train_test()
+        elif 'wunderground-IL' == utils.properties.data:
+            trainset, testset = wunderground_data.split_train_test(data_name='IL')
+        elif 'wunderground-cwide' == utils.properties.data:
+            trainset, testset = wunderground_data.split_train_test(data_name='countrywide')
         else:
             raise ValueError('Unknown value for utils.properties.data: ' + utils.properties.data)
         return trainset, testset
@@ -58,8 +60,10 @@ class DataProvider(object):
                 return utils.properties.humidity_k2_bin5_topology_ParentChildDictPath
             elif 'temperature+humidity' == utils.properties.data:
                 return utils.properties.temperature_humidity_k2_bin5_topology_ParentChildDictPath
-            elif 'wunderground' == utils.properties.data:
-                return utils.properties.wground_k2_bin5_topology_ParentChildDictPath
+            elif 'wunderground-IL' == utils.properties.data:
+                return utils.properties.wground_IL_k2_bin5_topology_ParentChildDictPath
+            elif 'wunderground-cwide' == utils.properties.data:
+                return utils.properties.wground_cdwide_k2_bin5_topology_ParentChildDictPath
             else:
                 raise NotImplementedError('Unknown data identifier: Available data are temperature, humidity,' +
                                           'and temperature+humidity for now.')

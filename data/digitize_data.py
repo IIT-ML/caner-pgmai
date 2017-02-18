@@ -18,7 +18,7 @@ def digitize_data():
     #                                                              Neighborhood.itself_previous_others_current)
 
     # Wunderground temperature data
-    trainset, testset = wunderground_data.split_train_test()
+    trainset, testset = wunderground_data.split_train_test(data_name='countrywide')
 
     X = np.vectorize(lambda x: x.true_label)(trainset)
     xMin = X.min()
@@ -28,8 +28,8 @@ def digitize_data():
     for row in X:
         digitized.append(np.digitize(row, bins))
     digitized = np.array(digitized)
-    np.savetxt('C:/Users/ckomurlu/Documents/workbench/data/wunderground/digitized/' +
-               'wground_digitized_bins=5_uniqMaxMin.txt', digitized, delimiter=',')
+    np.savetxt('C:/Users/ckomurlu/Documents/workbench/data/wunderground/countrywide/digitized/' +
+               'wgroundcwide_digitized_bins=5_uniqMaxMin.txt', digitized, delimiter=',')
 
 
 def combine_digitized_data():

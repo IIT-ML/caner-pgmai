@@ -24,15 +24,19 @@ humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/wor
 temperature_humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/' + \
                                      'experiments/20151103/temp_humid_parentChildDicts_k2_bin5.pkl'
 
-# wunderground
-wground_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/data/wunderground/' \
+# wunderground-IL
+wground_IL_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/data/wunderground/IL/' \
                                                'wground_parentChildDicts_k2_bin5.pkl'
+
+# wunderground-countrywide
+wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/data/wunderground/' \
+                                               'countrywide/wground_parentChildDicts_k2_bin5.pkl'
 
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151103/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20170120/wunderground/GP/RND/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20170120/countrywide/DGBN/RND/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 10
 
@@ -58,14 +62,15 @@ dbn_topology = 'k2_bin5' #, 'k2_bin10', 'mst', 'mst_enriched', 'imt'
 # data = 'temperature'
 # data = 'humidity'
 # data = 'temperature+humidity'
-data = 'wunderground'
+# data = 'wunderground-IL'
+data = 'wunderground-cwide'
 
-prediction_model = 'gp'
+# prediction_model = 'gp'
 # prediction_model = 'kf'
 # prediction_model = 'lc-linear'
 # prediction_model = 'lc-ridge'
 # prediction_model = 'lc-lasso'
-# prediction_model = 'dgbn'
+prediction_model = 'dgbn'
 
 # linearChainRegressionMethod = 'linear'
 # linearChainRegressionMethod = 'ridge'

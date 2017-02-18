@@ -71,7 +71,7 @@ def testActiveInferenceGaussianDBNParallel():
                                   'meanPredictionPath': meanPredictionPath, 'varPredictionPath': varPredictionPath,
                                   'errorpath': errorpath})
         else:
-            for trial in range(numTrials):
+            for trial in range(0, numTrials):
                 parameterList.append({'trial': trial, 'prediction_model': prediction_model,
                                       'selection_strategy_name': selection_strategy_name, 'T': T, 'tWin': tWin,
                                       'testset': testset, 'Y_test_allT': Y_test_allT, 'sampleSize': sampleSize,
@@ -84,7 +84,7 @@ def testActiveInferenceGaussianDBNParallel():
     pool = mp.Pool(processes=utils.properties.numParallelThreads)
     print 'Tasks in parallel are being started.'
     pool.map(trialFuncStar, parameterList)
-    # trialFuncStar(parameterList[0])
+    # # trialFuncStar(parameterList[0])
 
     for obsrate in utils.properties.obsrateList:
         errorpath = utils.properties.outputDirPath + str(obsrate) + '/errors/'
@@ -139,6 +139,7 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
     varPredResults = np.empty(shape=(prediction_model.rvCount, T))
     errResults = np.empty(shape=(T, 6))
     for t in range(T):
+        # print 't', t
         testMat = testset[:, :t+1]
         selectees = selectionStrategy.choices(count_selectees=obsCount, evidMat=evidMat, t=t,
                                               predictionModel=prediction_model, testMat=testMat, sampleSize=sampleSize,
