@@ -13,7 +13,7 @@ ts = time.time()
 # temperature data
 temperature_k2_bin10_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20150911/' + \
                                       'parentChildDicts_k2_bin10.pkl'
-temperature_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151023/' + \
+temperature_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documents/workbench/data/intelResearchLab/' + \
                                      'parentChildDicts_k2_bin5.pkl'
 
 # humidity
@@ -36,7 +36,7 @@ wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/ckomurlu/Documen
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20170120/countrywide/DGBN/RND/'
+outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20170227/temperature/DGBN/VAR2/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 10
 
@@ -48,22 +48,23 @@ mh_startupWidth = 5.0
 tWin = 12
 timeSpan = 12
 obsrateList = np.arange(0.0, 0.7, 0.1)
-numTrials = 5
+numTrials = 1
 
-selectionStrategy = 'randomStrategy2'
+# selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'
 # selectionStrategy = 'impactBased'
 # selectionStrategy = 'netImpactBased'
 # selectionStrategy = 'varianceBased'
-# selectionStrategy = 'varianceBased2'
+selectionStrategy = 'varianceBased2'
+# selectionStrategy = 'incrementalVariance'
 
 dbn_topology = 'k2_bin5' #, 'k2_bin10', 'mst', 'mst_enriched', 'imt'
 
-# data = 'temperature'
+data = 'temperature'
 # data = 'humidity'
 # data = 'temperature+humidity'
 # data = 'wunderground-IL'
-data = 'wunderground-cwide'
+# data = 'wunderground-cwide'
 
 # prediction_model = 'gp'
 # prediction_model = 'kf'

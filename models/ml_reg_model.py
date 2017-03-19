@@ -52,7 +52,9 @@ class MLRegModel(MLModel):
                                  'be {0,1,2}')
         legit_indices = np.where(Y_pred != constants.FLOAT_INF)
         return Y_true,Y_pred,legit_indices
-        
+
+    def computeVar(self):
+        raise NotImplementedError
 
     def compute_mean_absolute_error(self,test_set,Y_pred, type_=0, evidence_mat=None):
         # type_ 0 is the accuracy in which we include everyone with their

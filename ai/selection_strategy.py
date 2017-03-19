@@ -53,6 +53,8 @@ class StrategyFactory(object):
             selection_strategy = VarianceBased()
         elif 'varianceBased2' == strategy_name:
             selection_strategy = VarianceBased2()
+        elif 'incrementalVariance' == strategy_name:
+            selection_strategy = IncrementalVarianceBased()
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
                              'utils.properties.')
@@ -244,8 +246,8 @@ class VarianceBased2(AbstractSelectionStrategy):
     def __init__(self, **kwargs):
         self.mostRecentSelectees = None
 
-    def choices(self, count_selectees, t, curEvidMat, predictionModel, **kwargs):
-        varianceList = predictionModel.computeVar(curEvidMat)
+    def choices(self, count_selectees, evidMat, t, predictionModel, **kwargs):
+        varianceList = predictionModel.computeVar(evidMat[:, :t + 1])
         sortedIds = np.argsort(varianceList)
         sortedIds = sortedIds[::-1]
         self.mostRecentSelectees = sortedIds[:count_selectees]
@@ -254,6 +256,23 @@ class VarianceBased2(AbstractSelectionStrategy):
     def __str__(self):
         return 'most recent selectees: ' + str(self.mostRecentSelectees)
 
+
+class IncrementalVarianceBased(AbstractSelectionStrategy):
+    def __init__(self, **kwargs):
+        self.mostRecentSelectees = None
+
+    def choices(self, count_selectees, evidMat, t, predictionModel, **kwargs):
+        tempEvidMat = evidMat[:, :t + 1]
+        self.mostRecentSelectees = list()
+        for i in range(count_selectees):
+            varianceList = predictionModel.computeVar(tempEvidMat)
+            rvMaxVar = np.argmax(varianceList)
+            self.mostRecentSelectees.append(rvMaxVar)
+            tempEvidMat[rvMaxVar, t] = 1
+        return self.mostRecentSelectees
+
+    def __str__(self):
+        return 'most recent selectees: ' + str(self.mostRecentSelectees)
 
 class UNCSampling(object):
     '''

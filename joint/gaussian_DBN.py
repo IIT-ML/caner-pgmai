@@ -362,19 +362,15 @@ class GaussianDBN(MLRegModel):
     def computeVar(self, evidMat):
         T = evidMat.shape[1]
         varMat = np.empty(shape=(self.rvCount,T), dtype=np.float_)
-        if evidMat[self.sortedids[0], 0]:
-            varMat[self.sortedids[0], 0] = 0
-        else:
-            varMat[self.sortedids[0], 0] = self.cpdParams[self.sortedids[0]][0][2]
-        for sensor in self.sortedids[1:]:
+        # varMat[self.sortedids[0], 0] = 0 if evidMat[self.sortedids[0], 0] else self.cpdParams[self.sortedids[0]][0][2]
+        for sensor in self.sortedids:  # [1:]:
             if evidMat[sensor, 0]:
                 varMat[sensor, 0] = 0
             else:
-                currentVar = self.cpdParams[sensor][1][2]
-                # varVec = np.empty(shape=len(self.parentDict[sensor]))
+                currentVar = self.cpdParams[sensor][0][2]
                 currentTimeParents = self.parentDict[sensor][:-1]
                 varVec = varMat[currentTimeParents, 0]
-                varMat[sensor,0] = np.dot(varVec, (self.cpdParams[sensor][1][1][:-1] ** 2))
+                varMat[sensor,0] = np.dot(varVec, (self.cpdParams[sensor][0][1] ** 2)) + currentVar
         for t in range(1,T):
             for sensor in self.sortedids:
                 if evidMat[sensor, t]:
@@ -386,8 +382,7 @@ class GaussianDBN(MLRegModel):
                     varVec[:-1] = varMat[currentTimeParents, t]
                     previousTimeParent = self.parentDict[sensor][-1]
                     varVec[-1] = varMat[previousTimeParent - self.rvCount, t-1]
-                    # varMat[sensor,t] = varVec * (self.cpdParams[sensor][1][1] ** 2)
-                    varMat[sensor,t] = np.dot(varVec, (self.cpdParams[sensor][1][1] ** 2))
+                    varMat[sensor,t] = np.dot(varVec, (self.cpdParams[sensor][1][1] ** 2)) + currentVar
         return varMat[:, -1]
 
     def predict_incorrect(self, testset, evidence_mat=None):
