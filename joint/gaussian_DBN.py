@@ -18,6 +18,7 @@ from scipy.sparse.csgraph import minimum_spanning_tree
 import cPickle as cpk
 from collections import Counter
 from time import time
+import dynamic_linear_gaussian as dlg
 
 class GaussianDBN(MLRegModel):
     '''
@@ -327,7 +328,7 @@ class GaussianDBN(MLRegModel):
 #         print weightList
         return (sampleStorage, weightList, logWeightList)
 
-    def predict(self, testMat, evidMat, tWin, sampleSize=2000, burnInCount=1000, samplingPeriod=2, startupVals=None,
+    def predictViaMH(self, testMat, evidMat, tWin, sampleSize=2000, burnInCount=1000, samplingPeriod=2, startupVals=None,
                 obsrate=0.0, trial=0, t=0, **kwargs):
         if t < tWin:
             testset = testMat[:, :t+1]
@@ -358,6 +359,45 @@ class GaussianDBN(MLRegModel):
         muData = np.mean(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         sigmasqData = np.var(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         return muData, sigmasqData
+
+    def predict(self, testMat, evidMat, t, **kwargs):
+        T = t+1
+        assert(testMat.shape[0] == self.rvCount)
+        assert(testMat.shape[1] >= T)
+        assert(evidMat.shape[0] == self.rvCount)
+        assert(evidMat.shape[1] >= T)
+        parents = self._convertParents()
+        initbeta0s = map(lambda x: x[0], self.cpdParams[:, 0])
+        initbetas = map(lambda x: x[1], self.cpdParams[:, 0])
+        initsigmasqs = map(lambda x: x[2], self.cpdParams[:, 0])
+        interbeta0s = map(lambda x: x[0], self.cpdParams[:, 1])
+        interbetas = map(lambda x: x[1], self.cpdParams[:, 1])
+        intersigmasqs = map(lambda x: x[2], self.cpdParams[:, 1])
+        cova = dlg.computeMultivariateCovarianceMatrixDynamic(parents, initbetas, initsigmasqs, interbetas,
+                                                              intersigmasqs, T)
+        mu = dlg.computeMultivariateMeanVectorDynamic(parents, initbeta0s, initbetas, interbeta0s, interbetas, T)
+        obs_data = np.vectorize(lambda x: x.true_label)(testMat[:, :t+1])
+        obs_mask = ~evidMat[:, :t+1]
+        obs = np.ma.array(obs_data, mask=obs_mask)
+        inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, T=T, obs=obs)
+        return self._convertInferencesDynamic(inferences_dynamic, T)
+
+
+    def _convertParents(self):
+        '''It converts parents data from pgmai format to PyCK format'''
+        parentsNew = dict()
+        for var in self.sortedids:
+            parentsNew[var] = map(lambda x: (x, 0) if x < self.rvCount else (x - self.rvCount, -1),
+                                  self.parentDict[var])
+        return parentsNew
+
+    def _convertInferencesDynamic(self, inferences_dynamic, T):
+        mu = np.ones((self.rvCount, T)) * (-1)
+        sigmasq = np.ones((self.rvCount, T)) * (-1)
+        for key in inferences_dynamic:
+            mu[key[0], key[1]] = inferences_dynamic[key][0]
+            sigmasq[key[0], key[1]] = inferences_dynamic[key][1]
+        return mu, sigmasq
 
     def computeVar(self, evidMat):
         T = evidMat.shape[1]
