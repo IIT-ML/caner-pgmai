@@ -8,7 +8,7 @@ from utils.node import SensorRVNode
 
 def create_data_matrix():
     # dq = pd.read_csv('C:/Users/ckomurlu/Documents/workbench/data/wunderground/IL/dq.csv')
-    dq = pd.read_csv('C:/Users/ckomurlu/Documents/workbench/data/wunderground/countrywide/dq.csv')
+    dq = pd.read_csv('C:/Users/CnrKmrl/Documents/workbench/data/wunderground/countrywide/dq.csv')
     dq.drop('Unnamed: 0', axis=1, inplace=True)
     loc_groups = dq.groupby('location')
     n_sensors = len(loc_groups)
@@ -40,9 +40,11 @@ def split_train_test(data_name='IL'):
     teststart = trainend
     testend = teststart + 4 * 12
     if data_name == 'IL':
-        fname = 'C:/Users/ckomurlu/PycharmProjects/pgmai/csvData/wunderground/IL/3months/wund_3months_mat.pkl'
+        fname = 'C:\\Users\\CnrKmrl\\Documents\\workbench\\data\\wunderground\\IL\\csvData\\wund_3months_mat.pkl'
+
     elif data_name == 'countrywide':
-        fname = 'C:/Users/ckomurlu/PycharmProjects/pgmai/csvData/wunderground/countrywide/3months/wund_3months_mat.pkl'
+        fname = 'C:\\Users\\CnrKmrl\\Documents\\workbench\\data\\wunderground\\countrywide\\csvData\\' + \
+                'wund_3months_mat.pkl'
     else:
         raise ValueError()
     data_mat = read_data_matrix(fname)
@@ -92,7 +94,7 @@ def createParentChildDict():
     # sampleParentDict, sampleChildDict
 
 
-createParentChildDict()
+# createParentChildDict()
 # printTrueLabelMat()
 
 # main()

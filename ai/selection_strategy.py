@@ -6,6 +6,7 @@ Created on Jan 8, 2015
 from abc import ABCMeta, abstractmethod
 import numpy as np
 from collections import deque
+import sys
 
 import utils.properties
 from utils.decorations import deprecated
@@ -44,7 +45,10 @@ class StrategyFactory(object):
             selection_strategy = ImpactBased(pool=kwargs['pool'], parentDict=kwargs['parentDict'],
                                              childDict=kwargs['childDict'], cpdParams=kwargs['cpdParams'],
                                              rvCount=kwargs['rvCount'])
-
+        elif 'minimumImpactBased' == strategy_name:
+            selection_strategy = MinimumImpactBased(pool=kwargs['pool'], parentDict=kwargs['parentDict'],
+                                             childDict=kwargs['childDict'], cpdParams=kwargs['cpdParams'],
+                                             rvCount=kwargs['rvCount'])
         elif 'netImpactBased' == strategy_name:
             selection_strategy = NetImpactBased(pool=kwargs['pool'], parentDict=kwargs['parentDict'],
                                              childDict=kwargs['childDict'], cpdParams=kwargs['cpdParams'],
@@ -178,6 +182,22 @@ class ImpactBased(AbstractSelectionStrategy):
 
     def __str__(self):
         return '[pool: ' + str(self.pool) + ', rv count: ' + str(self.rvCount) + ']'
+
+
+class MinimumImpactBased(ImpactBased):
+    def choices(self, count_selectees, t, evidMat, **kwargs):
+        selectees = list()  # np.empty(shape=(countSelectees,),dtype=np.int_)
+        for i in range(count_selectees):
+            min_impact = sys.maxint
+            min_imapct_sensor = -1
+            for sensor in self.pool:
+                if sensor not in selectees:
+                    current_impact = self._computeSensorImpact(sensor, t, evidMat)
+                    if current_impact < min_impact:
+                        min_impact = current_impact
+                        min_imapct_sensor = sensor
+            selectees.append(min_imapct_sensor)
+        return selectees
 
 
 class NetImpactBased(ImpactBased):

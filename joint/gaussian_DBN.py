@@ -113,6 +113,7 @@ class GaussianDBN(MLRegModel):
         for key in self.parentDict:
             self.parentDict[key].append(key + self.rvCount)
         self.sortedids = black
+        self.childDict = self.getChildDict()
 
 
     def setParentsByMST_enriched(self, absround):
@@ -379,7 +380,7 @@ class GaussianDBN(MLRegModel):
         obs_data = np.vectorize(lambda x: x.true_label)(testMat[:, :t+1])
         obs_mask = ~evidMat[:, :t+1]
         obs = np.ma.array(obs_data, mask=obs_mask)
-        inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, T=T, obs=obs)
+        inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, T=T, obs=obs, inverse_method='SVD')
         return self._convertInferencesDynamic(inferences_dynamic, T)
 
 
