@@ -59,6 +59,8 @@ class StrategyFactory(object):
             selection_strategy = VarianceBased2()
         elif 'incrementalVariance' == strategy_name:
             selection_strategy = IncrementalVarianceBased()
+        elif 'firstOrderChildren' == strategy_name:
+            selection_strategy = FirstorderVarianceReductionOnChildren()
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
                              'utils.properties.')
@@ -260,6 +262,24 @@ class VarianceBased(AbstractSelectionStrategy):
 
     def __str__(self):
         return 'most recent selectees: ' + str(self.mostRecentSelectees)
+
+
+class FirstorderVarianceReductionOnChildren(VarianceBased):
+    def choices(self, count_selectees, t, evidMat, predictionModel, testMat, sampleSize, burnInCount,
+                startupVals=None, tWin=None, **kwargs):
+        curEvidMat = evidMat[:, :t+1]
+        betasqs = map(lambda x: float(np.dot(x[1].T, x[1])), predictionModel.cpdParams[:, 0]) if t == 0 else \
+            map(lambda x: float(np.dot(x[1].T, x[1])), predictionModel.cpdParams[:, 1])
+        self.mostRecentSelectees = list()
+        for i in range(count_selectees):
+            Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, sampleSize=sampleSize, tWin=tWin,
+                                                          burnInCount=burnInCount, startupVals=startupVals, t=t)
+            Yvarpred = Yvarpred[:, -1].squeeze()
+            varReductionList = np.multiply(Yvarpred, betasqs)
+            selectee = np.argmax(varReductionList)
+            self.mostRecentSelectees.append(selectee)
+            curEvidMat[selectee, t] = True
+        return self.mostRecentSelectees
 
 
 class VarianceBased2(AbstractSelectionStrategy):

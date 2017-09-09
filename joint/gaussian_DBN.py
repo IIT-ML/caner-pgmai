@@ -381,7 +381,11 @@ class GaussianDBN(MLRegModel):
         obs_mask = ~evidMat[:, :t+1]
         obs = np.ma.array(obs_data, mask=obs_mask)
         inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, T=T, obs=obs, inverse_method='SVD')
-        return self._convertInferencesDynamic(inferences_dynamic, T)
+        marginal_mu, marginal_sigmasq = self._convertInferencesDynamic(inferences_dynamic, T)
+        marginal_mu[~obs.mask[:, -1]] = obs.data[~obs.mask[:, -1]]
+        marginal_sigmasq[~obs.mask[:, -1]] = 0
+        return marginal_mu, marginal_sigmasq
+
 
 
     def _convertParents(self):
