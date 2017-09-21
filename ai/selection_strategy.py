@@ -61,6 +61,10 @@ class StrategyFactory(object):
             selection_strategy = IncrementalVarianceBased()
         elif 'firstOrderChildren' == strategy_name:
             selection_strategy = FirstorderVarianceReductionOnChildren()
+        elif 'firstOrderChildren_err' == strategy_name:
+            selection_strategy = FirstorderVarianceReductionOnChildren_err()
+        elif 'constantSelection' == utils.properties.selectionStrategy:
+            selection_strategy = ConstantSelection()
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
                              'utils.properties.')
@@ -105,6 +109,19 @@ class RandomStrategy2(AbstractSelectionStrategy):
 
     def __str__(self):
         return '[rgen seed: ' + str(self.seed) + ', pool: ' + str(self.pool) + ']'
+
+
+class ConstantSelection(AbstractSelectionStrategy):
+    def __init__(self):
+        self.preselections = utils.properties.preselections
+
+    def choices(self, count_selectees, **kwargs):
+        if count_selectees != len(self.preselections):
+            raise ValueError('count_selectees and the length of self.preselections do not match.')
+        return self.preselections
+
+    def __str__(self):
+        return 'constant selections: ' + str(self.preselections)
 
 
 class SlidingWindow(AbstractSelectionStrategy):
@@ -265,6 +282,43 @@ class VarianceBased(AbstractSelectionStrategy):
 
 
 class FirstorderVarianceReductionOnChildren(VarianceBased):
+    def choices(self, count_selectees, t, evidMat, predictionModel, testMat, sampleSize, burnInCount,
+                startupVals=None, tWin=None, **kwargs):
+        curEvidMat = evidMat[:, :t+1]
+        n_var = len(predictionModel.sortedids)
+        betasqsum_list = [None] * n_var
+        if t == 0:
+            for var in predictionModel.sortedids:
+                betasqsum = 0
+                for child in predictionModel.childDict[var]:
+                    betasqsum += predictionModel.cpdParams[child, 0][1][
+                                     predictionModel.parentDict[child].index(var), 0] ** 2
+                betasqsum += predictionModel.cpdParams[var, 1][1][
+                    predictionModel.parentDict[var].index(var + n_var), 0] ** 2
+                betasqsum_list[var] = betasqsum
+        else:
+            for var in predictionModel.sortedids:
+                betasqsum = 0
+                for child in predictionModel.childDict[var]:
+                    betasqsum += predictionModel.cpdParams[child, 1][1][
+                                     predictionModel.parentDict[child].index(var), 0] ** 2
+                betasqsum += predictionModel.cpdParams[var, 1][1][
+                    predictionModel.parentDict[var].index(var + n_var), 0] ** 2
+                betasqsum_list[var] = betasqsum
+        self.mostRecentSelectees = list()
+        for i in range(count_selectees):
+            Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, sampleSize=sampleSize, tWin=tWin,
+                                                          burnInCount=burnInCount, startupVals=startupVals, t=t)
+            Yvarpred = Yvarpred[:, -1].squeeze()
+            varReductionList = np.multiply(Yvarpred, betasqsum_list)
+            selectee = np.argmax(varReductionList)
+            self.mostRecentSelectees.append(selectee)
+            curEvidMat[selectee, t] = True
+        return self.mostRecentSelectees
+
+
+@deprecated
+class FirstorderVarianceReductionOnChildren_err(VarianceBased):
     def choices(self, count_selectees, t, evidMat, predictionModel, testMat, sampleSize, burnInCount,
                 startupVals=None, tWin=None, **kwargs):
         curEvidMat = evidMat[:, :t+1]

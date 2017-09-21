@@ -130,8 +130,16 @@ def trialFunc(trial, prediction_model, selection_strategy_name, T, tWin, testset
               sensormeans=None):
     print 'obsrate {} trial {}'.format(obsrate, trial)
     evidMat = np.zeros(shape=(prediction_model.rvCount, T), dtype=np.bool_)
+
+    # TODO
+    # Added to try prohibitive random selection
+    prohibit_list = []
+    prohibitive_pool = filter(lambda x: x not in prohibit_list, prediction_model.sortedids)
+    # Remove when you are done with prohibitive approach
+
+
     selectionStrategy = StrategyFactory.generate_selection_strategy(selection_strategy_name, seed=trial,
-                                                                    pool=prediction_model.sortedids,
+                                                                    pool=prohibitive_pool,
                                                                     parentDict=prediction_model.parentDict,
                                                                     childDict=prediction_model.childDict,
                                                                     cpdParams=prediction_model.cpdParams,
