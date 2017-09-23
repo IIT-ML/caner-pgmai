@@ -16,25 +16,6 @@ class StrategyFactory(object):
     __metaclass__ = ABCMeta
 
     @staticmethod
-    def generate_selection_strategy_depr():
-        if 'randomStrategy2' == utils.properties.selectionStrategy:
-            selection_strategy_class = RandomStrategy2
-        elif 'slidingWindow' == utils.properties.selectionStrategy:
-            selection_strategy_class = SlidingWindow
-        elif 'impactBased' == utils.properties.selectionStrategy:
-            selection_strategy_class = ImpactBased
-        elif 'netImpactBased' == utils.properties.selectionStrategy:
-            selection_strategy_class = NetImpactBased
-        elif 'varianceBased' == utils.properties.selectionStrategy:
-            selection_strategy_class = VarianceBased
-        elif 'varianceBased2' == utils.properties.selectionStrategy:
-            selection_strategy_class = VarianceBased2
-        else:
-            raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
-                             'utils.propoerties.')
-        return selection_strategy_class
-
-    @staticmethod
     def generate_selection_strategy(strategy_name, **kwargs):
         selection_strategy = ''
         if 'randomStrategy2' == strategy_name:
@@ -63,6 +44,10 @@ class StrategyFactory(object):
             selection_strategy = FirstorderVarianceReductionOnChildren()
         elif 'firstOrderChildren_err' == strategy_name:
             selection_strategy = FirstorderVarianceReductionOnChildren_err()
+        elif 'batchTotalVarianceReduction' == strategy_name:
+            selection_strategy = BatchTotalVarianceReduction(pool=kwargs['pool'])
+        elif 'iterativeTotalVarianceReduction' == strategy_name:
+            selection_strategy = IterativeTotalVarianceReduction(pool=kwargs['pool'])
         elif 'constantSelection' == utils.properties.selectionStrategy:
             selection_strategy = ConstantSelection()
         else:
@@ -334,6 +319,49 @@ class FirstorderVarianceReductionOnChildren_err(VarianceBased):
             self.mostRecentSelectees.append(selectee)
             curEvidMat[selectee, t] = True
         return self.mostRecentSelectees
+
+
+class BatchTotalVarianceReduction(AbstractSelectionStrategy):
+    def __init__(self, pool):
+        super(BatchTotalVarianceReduction, self).__init__()
+        self.pool = pool
+
+    def choices(self, count_selectees, t, evidMat, predictionModel, testMat, **kwargs):
+        curEvidMat = evidMat[:, :t + 1].copy()
+        totalVariances = list()
+        for var in self.pool:
+            if curEvidMat[var, -1]:
+                continue
+            curEvidMat[var, -1] = True
+            Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, t=t, sampleSize=kwargs['sampleSize'],
+                                                          tWin=['tWin'], burnInCount=['burnInCount'],
+                                                          startupVals=['startupVals'])
+            totalVariances.append((var, sum(Yvarpred[:, -1])))
+            curEvidMat[var, -1] = False
+        selectees = [x[0] for x in sorted(totalVariances, key=lambda x: x[1])[:count_selectees]]
+        return selectees
+
+    def __str__(self):
+        '[pool: ' + str(self.pool) + ']'
+
+
+class IterativeTotalVarianceReduction(BatchTotalVarianceReduction):
+    def __init__(self, pool):
+        super(IterativeTotalVarianceReduction, self).__init__(pool)
+        self.pool = pool
+
+    def choices(self, count_selectees, t, evidMat, predictionModel, testMat, **kwargs):
+        local_evidence_mat = evidMat[:, :t + 1].copy()
+        selectees = list()
+        for i in range(count_selectees):
+            nxt = super(IterativeTotalVarianceReduction, self).choices(1, t, local_evidence_mat, predictionModel,
+                                                                       testMat, **kwargs)[0]
+            selectees.append(nxt)
+            local_evidence_mat[nxt] = True
+            self.pool.remove(nxt)
+        return selectees
+
+
 
 
 class VarianceBased2(AbstractSelectionStrategy):
