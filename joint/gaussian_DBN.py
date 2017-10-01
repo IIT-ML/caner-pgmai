@@ -10,6 +10,7 @@ from utils import readdata
 import utils.properties
 from utils.readdata import convert_time_window_df_randomvar_hour
 from data.data_provider import DataProvider
+import dynamic_linear_gaussian as dlg
 
 import numpy as np
 from scipy.stats import norm
@@ -18,7 +19,9 @@ from scipy.sparse.csgraph import minimum_spanning_tree
 import cPickle as cpk
 from collections import Counter
 from time import time
-import dynamic_linear_gaussian as dlg
+import numbers
+
+
 
 class GaussianDBN(MLRegModel):
     '''
@@ -77,7 +80,6 @@ class GaussianDBN(MLRegModel):
                                                         cova100,initial=True)
             self.cpdParams[i, 1] = self.__computeCondGauss(i,self.parentDict,
                                                         mea100,cova100)
-
 
     def setParentsByMST(self,absround):
         self.parentDict = dict()
@@ -361,7 +363,7 @@ class GaussianDBN(MLRegModel):
         sigmasqData = np.var(dataarr[burnInCount::samplingPeriod,:,:],axis=0)
         return muData, sigmasqData
 
-    def predict(self, testMat, evidMat, t, **kwargs):
+    def predict(self, testMat, evidMat, t, last_slice_only=False, **kwargs):
         T = t+1
         assert(testMat.shape[0] == self.rvCount)
         assert(testMat.shape[1] >= T)
@@ -380,13 +382,18 @@ class GaussianDBN(MLRegModel):
         obs_data = np.vectorize(lambda x: x.true_label)(testMat[:, :t+1])
         obs_mask = ~evidMat[:, :t+1]
         obs = np.ma.array(obs_data, mask=obs_mask)
-        inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, T=T, obs=obs, inverse_method='SVD')
-        marginal_mu, marginal_sigmasq = self._convertInferencesDynamic(inferences_dynamic, T)
-        marginal_mu[~obs.mask[:, -1]] = obs.data[~obs.mask[:, -1]]
-        marginal_sigmasq[~obs.mask[:, -1]] = 0
+        if last_slice_only:
+            variables = [(id_, T-1) for id_ in filter(lambda x: ~evidMat[x, -1], self.sortedids)]
+            inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, vars=variables, T=T, obs=obs, inverse_method='SVD')
+            marginal_mu, marginal_sigmasq = self._convertInferencesDynamicLastSlice(inferences_dynamic)
+            marginal_mu[~obs.mask[:, -1]] = obs.data[~obs.mask[:, -1]]
+            marginal_sigmasq[~obs.mask[:, -1]] = 0
+        else:
+            inferences_dynamic = dlg.exactInferenceDynamic(mu, cova, T=T, obs=obs, inverse_method='SVD')
+            marginal_mu, marginal_sigmasq = self._convertInferencesDynamicAllSlices(inferences_dynamic, T)
+            marginal_mu[~obs.mask] = obs.data[~obs.mask]
+            marginal_sigmasq[~obs.mask] = 0
         return marginal_mu, marginal_sigmasq
-
-
 
     def _convertParents(self):
         '''It converts parents data from pgmai format to PyCK format'''
@@ -396,13 +403,19 @@ class GaussianDBN(MLRegModel):
                                   self.parentDict[var])
         return parentsNew
 
-    def _convertInferencesDynamic(self, inferences_dynamic, T):
+    def _convertInferencesDynamicAllSlices(self, inferences_dynamic, T):
         mu = np.ones((self.rvCount, T)) * (-1)
         sigmasq = np.ones((self.rvCount, T)) * (-1)
         for key in inferences_dynamic:
-            mu[key[0], key[1]] = inferences_dynamic[key][0]
-            sigmasq[key[0], key[1]] = inferences_dynamic[key][1]
+            mu[key[0], key[1]], sigmasq[key[0], key[1]] = inferences_dynamic[key]
         return mu, sigmasq
+
+    def _convertInferencesDynamicLastSlice(self, inferences_dynamic):
+        mus = np.ones((self.rvCount,)) * -1
+        sigmasqs = np.ones((self.rvCount,)) * -1
+        for key in inferences_dynamic:
+            mus[key[0]], sigmasqs[key[0]] = inferences_dynamic[key]
+        return mus, sigmasqs
 
     def computeVar(self, evidMat):
         T = evidMat.shape[1]

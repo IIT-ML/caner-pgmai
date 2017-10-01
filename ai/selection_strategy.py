@@ -333,10 +333,9 @@ class BatchTotalVarianceReduction(AbstractSelectionStrategy):
             if curEvidMat[var, -1]:
                 continue
             curEvidMat[var, -1] = True
-            Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, t=t, sampleSize=kwargs['sampleSize'],
-                                                          tWin=['tWin'], burnInCount=['burnInCount'],
-                                                          startupVals=['startupVals'])
-            totalVariances.append((var, sum(Yvarpred[:, -1])))
+            Ymeanpred, Yvarpred = predictionModel.predict(testMat, curEvidMat, t=t, prediction_slices=-1,
+                                                          last_slice_only=True, **kwargs)
+            totalVariances.append((var, sum(Yvarpred)))
             curEvidMat[var, -1] = False
         selectees = [x[0] for x in sorted(totalVariances, key=lambda x: x[1])[:count_selectees]]
         return selectees
@@ -348,7 +347,8 @@ class BatchTotalVarianceReduction(AbstractSelectionStrategy):
 class IterativeTotalVarianceReduction(BatchTotalVarianceReduction):
     def __init__(self, pool):
         super(IterativeTotalVarianceReduction, self).__init__(pool)
-        self.pool = pool
+        self.pool = pool[:]
+        self.original_pool = self.pool[:]
 
     def choices(self, count_selectees, t, evidMat, predictionModel, testMat, **kwargs):
         local_evidence_mat = evidMat[:, :t + 1].copy()
@@ -359,10 +359,8 @@ class IterativeTotalVarianceReduction(BatchTotalVarianceReduction):
             selectees.append(nxt)
             local_evidence_mat[nxt] = True
             self.pool.remove(nxt)
+        self.pool = self.original_pool[:]
         return selectees
-
-
-
 
 class VarianceBased2(AbstractSelectionStrategy):
     def __init__(self, **kwargs):
