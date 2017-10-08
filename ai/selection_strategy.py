@@ -42,14 +42,16 @@ class StrategyFactory(object):
             selection_strategy = IncrementalVarianceBased()
         elif 'firstOrderChildren' == strategy_name:
             selection_strategy = FirstorderVarianceReductionOnChildren()
-        elif 'firstOrderChildren_err' == strategy_name:
-            selection_strategy = FirstorderVarianceReductionOnChildren_err()
+        elif 'varianceByBetaSquare' == strategy_name:
+            selection_strategy = VarianceByBetaSquare()
         elif 'batchTotalVarianceReduction' == strategy_name:
             selection_strategy = BatchTotalVarianceReduction(pool=kwargs['pool'])
         elif 'iterativeTotalVarianceReduction' == strategy_name:
             selection_strategy = IterativeTotalVarianceReduction(pool=kwargs['pool'])
         elif 'constantSelection' == utils.properties.selectionStrategy:
             selection_strategy = ConstantSelection()
+        elif 'greedyCheating' == utils.properties.selectionStrategy:
+            selection_strategy = GreedyCheatingSelection(pool=kwargs['pool'])
         else:
             raise ValueError('Unknown strategy choice. Please double check selection strategy name in ' +
                              'utils.properties.')
@@ -302,8 +304,7 @@ class FirstorderVarianceReductionOnChildren(VarianceBased):
         return self.mostRecentSelectees
 
 
-@deprecated
-class FirstorderVarianceReductionOnChildren_err(VarianceBased):
+class VarianceByBetaSquare(VarianceBased):
     def choices(self, count_selectees, t, evidMat, predictionModel, testMat, sampleSize, burnInCount,
                 startupVals=None, tWin=None, **kwargs):
         curEvidMat = evidMat[:, :t+1]
@@ -361,6 +362,35 @@ class IterativeTotalVarianceReduction(BatchTotalVarianceReduction):
             self.pool.remove(nxt)
         self.pool = self.original_pool[:]
         return selectees
+
+class GreedyCheatingSelection(AbstractSelectionStrategy):
+    def __init__(self, pool,  **kwargs):
+        self.pool = pool[:]
+        self.original_pool = self.pool[:]
+
+    def choices(self, count_selectees, t, evidMat, predictionModel, testMat, **kwargs):
+        selectees = list()
+        local_evidence_mat = evidMat[:, :t + 1].copy()
+        for i in range(count_selectees):
+            mae_vector = np.zeros(len(self.pool))
+            for var in self.pool:
+                local_evidence_mat[var, -1] = True
+                Ymeanpred, Yvarpred = predictionModel.predict(testMat, local_evidence_mat, t=t, last_slice_only=True,
+                                                              **kwargs)
+                mae_vector[self.pool.index(var)] = predictionModel.compute_mean_absolute_error(testMat[:, -1],
+                                                    Ymeanpred, type_=1, evidence_mat=local_evidence_mat[:, -1])
+                local_evidence_mat[var, -1] = False
+            current_selection = self.pool.pop(np.argmin(mae_vector))
+            selectees.append(current_selection)
+            local_evidence_mat[current_selection] = True
+        self.pool = self.original_pool[:]
+        return selectees
+
+    def __str__(self):
+        '[pool: ' + str(self.pool) + ']'
+
+
+
 
 class VarianceBased2(AbstractSelectionStrategy):
     def __init__(self, **kwargs):

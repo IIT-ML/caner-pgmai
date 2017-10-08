@@ -72,6 +72,8 @@ class GaussianDBN(MLRegModel):
         elif topology == 'k2_bin10' or topology == 'k2_bin5':
             topology_file_path = DataProvider.get_topology_file_path()
             self.setParentsByK2(topology_file_path)
+        elif topology == 'fully_connected':
+            self.set_parents_fully_connected()
         else:
             raise ValueError('topology should be either imt, or mst or mst_enriched.')
         self.cpdParams = np.empty(shape=self.means.shape + (2,), dtype=tuple)
@@ -80,6 +82,11 @@ class GaussianDBN(MLRegModel):
                                                         cova100,initial=True)
             self.cpdParams[i, 1] = self.__computeCondGauss(i,self.parentDict,
                                                         mea100,cova100)
+
+    def set_parents_fully_connected(self):
+        self.sortedids = range(self.rvCount)
+        self.parentDict = {id_: range(id_) + [id_ + self.rvCount] for id_ in self.sortedids}
+        self.childDict = {id_: range(id_+1, self.rvCount) for id_ in self.sortedids}
 
     def setParentsByMST(self,absround):
         self.parentDict = dict()
