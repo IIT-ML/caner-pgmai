@@ -55,8 +55,10 @@ class GaussianDBN(MLRegModel):
         '''
         self.rvCount = trainset.shape[0]
         X = np.vectorize(lambda x: x.true_label)(trainset)
-        self.means = np.mean(X,axis=1)
-        mea100 = np.append(self.means,self.means)
+        self.means = np.mean(X, axis=1)
+        self.means1 = np.mean(X[:, :-1], axis=1)
+        self.means2 = np.mean(X[:, 1:], axis=1)
+        mea100 = np.append(self.means1, self.means2)
         cova = np.cov(X[:, :])
         Y = np.append(X[:, 1:], X[:, :-1], axis=0)
         cova100 = np.cov(Y)
