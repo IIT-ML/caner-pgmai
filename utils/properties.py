@@ -36,16 +36,16 @@ wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Document
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170822/fully_connected/wunderground-US/DGBN/GCS_debug/'
+outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170923/k2_bin5_with_offset/humidity/DGBN/RND_debug/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 2
 
 tWin = 12
 timeSpan = 12
-obsrateList = np.arange(0.1, 0.7, 0.1)
+obsrateList = np.arange(0.1, 0.3, 0.1)
 numTrials = 1
 
-# selectionStrategy = 'randomStrategy2'
+selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'
 # selectionStrategy = 'impactBased'
 # selectionStrategy = 'minimumImpactBased'
@@ -58,7 +58,7 @@ numTrials = 1
 # selectionStrategy = 'varianceBased2'
 # selectionStrategy = 'incrementalVariance'
 # selectionStrategy = 'constantSelection'
-selectionStrategy = 'greedyCheating'
+# selectionStrategy = 'greedyCheating'
 # preselections = [7, 33]
 # preselections = [11, 35]
 preselections = [11, 35, 12, 40, 5, 19, 29, 32, 44, 48]
@@ -72,18 +72,20 @@ preselections = [11, 35, 12, 40, 5, 19, 29, 32, 44, 48]
 #  44, 45, 47]
 # count is 30 in the above list
 
-# dbn_topology = 'k2_bin5'
-dbn_topology = 'fully_connected'
+dbn_topology = 'k2_bin5'
+# dbn_topology = 'fully_connected'
 # dbn_topology = 'mst'
 # dbn_topology = 'k2_bin10'
 # dbn_topology = 'imt'
 # 'mst_enriched'
 
-# data = 'temperature'
+data = 'temperature'
 # data = 'humidity'
 # data = 'temperature+humidity'
 # data = 'wunderground-IL'
-data = 'wunderground-cwide'
+# data = 'wunderground-cwide'
+
+aligned_data = True
 
 # prediction_model = 'gp'
 # prediction_model = 'kf'

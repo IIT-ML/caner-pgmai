@@ -19,6 +19,9 @@ class DataProvider(object):
         if 'temperature' == utils.properties.data:
             trainset, testset = readdata.convert_time_window_df_randomvar_hour(True,
                                                         Neighborhood.itself_previous_others_current)
+            if utils.properties.aligned_data:
+                trainset = trainset[:, range(24, 36) + range(72, 84) + range(120, 132)]
+                testset = testset[:, 24:36]
         elif 'humidity' == utils.properties.data:
             hp = HumidityProcessor()
             # hp.read_data(to_be_pickled=True)
@@ -29,6 +32,9 @@ class DataProvider(object):
             # hp.train_test_split_by_day_hour(to_be_pickled=True)
             trainset, testset = hp.convert_time_window_df_randomvar_hour(True,
                                                                          Neighborhood.itself_previous_others_current)
+            if utils.properties.aligned_data:
+                trainset = trainset[:, range(24, 36) + range(72, 84) + range(120, 132)]
+                testset = testset[:, 24:36]
         elif 'temperature+humidity' == utils.properties.data:
             trainset1, testset1 = readdata.convert_time_window_df_randomvar_hour(True,
                                                         Neighborhood.itself_previous_others_current)
@@ -44,9 +50,14 @@ class DataProvider(object):
             trainset = np.append(trainset1, trainset2, axis=0)
             testset = np.append(testset1, testset2, axis=0)
         elif 'wunderground-IL' == utils.properties.data:
+            raise NotImplementedError('Wundergroung IL data is selected. This data set has not been fixed yet.')
             trainset, testset = wunderground_data.split_train_test(data_name='IL')
+            if utils.properties.aligned_data:
+                raise NotImplementedError('Aligned data approach is not implemented for Wunderground IL data.')
         elif 'wunderground-cwide' == utils.properties.data:
             trainset, testset = wunderground_data.split_train_test(data_name='countrywide')
+            if utils.properties.aligned_data:
+                raise NotImplementedError('Aligned data approach is not implemented for Wunderground US data.')
         else:
             raise ValueError('Unknown value for utils.properties.data: ' + utils.properties.data)
         return trainset, testset
