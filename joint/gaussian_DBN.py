@@ -41,8 +41,26 @@ class GaussianDBN(MLRegModel):
         self.topology = 'TBD'
         self.means = np.empty(shape=0)
 
-
     def fit(self, trainset, topology='original', **kwargs):
+        if utils.properties.learningDBN == 'multivariate_Guassian':
+            self.fit_by_multivariate_gaussian_distribution(trainset=trainset, topology=topology, **kwargs)
+        elif utils.properties.learningDBN == 'lasso_regression':
+            self.fit_by_lasso_regression()
+
+    def fit_by_lasso_regression(self):
+        file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\intelResearch\lasso_learned_parameters.pkl', 'r')
+        (pruned_parents, initbeta0s, initbetas, initsigmasqs, interbeta0s, interbetas, intersigmasqs) = cpk.load(file_)
+        self.rvCount = len(pruned_parents)
+        self.sortedids = range(self.rvCount)
+        self.parentDict = {k: [tpl[0] if tpl[1] == 0 else tpl[0] + self.rvCount for tpl in v] for k, v in
+                           pruned_parents.items()}
+        self.cpdParams = np.empty(shape=(self.rvCount, 2), dtype=tuple)
+        for var in self.sortedids:
+            self.cpdParams[var, 0] = (initbeta0s[var], initbetas[var], initsigmasqs[var])
+            self.cpdParams[var, 1] = (interbeta0s[var], interbetas[var], intersigmasqs[var])
+
+
+    def fit_by_multivariate_gaussian_distribution(self, trainset, topology='original', **kwargs):
         '''
         Parameters
         trainset: It has to be a 2D matrix. Each entry should be a rv object,

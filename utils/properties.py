@@ -36,14 +36,14 @@ wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Document
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170923/k2_bin5_with_offset/humidity/DGBN/RND_debug/'
+outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170923/fully_connected_with_offset/temperature/DGBN/RND_debug/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 2
 
 tWin = 12
 timeSpan = 12
 obsrateList = np.arange(0.1, 0.3, 0.1)
-numTrials = 1
+numTrials = 5
 
 selectionStrategy = 'randomStrategy2'
 # selectionStrategy = 'slidingWindow'
@@ -93,6 +93,9 @@ aligned_data = True
 # prediction_model = 'lc-ridge'
 # prediction_model = 'lc-lasso'
 prediction_model = 'dgbn'
+
+learningDBN = 'multivariate_Guassian'
+# learningDBN = 'lasso_regression'
 
 # linearChainRegressionMethod = 'linear'
 # linearChainRegressionMethod = 'ridge'
