@@ -48,7 +48,7 @@ class GaussianDBN(MLRegModel):
             self.fit_by_lasso_regression()
 
     def fit_by_lasso_regression(self):
-        file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\intelResearch\lasso_learned_parameters.pkl', 'r')
+        file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\intelResearch\lasso_learned_parameters_[22_34,70_82,118_130].pkl', 'r')
         (pruned_parents, initbeta0s, initbetas, initsigmasqs, interbeta0s, interbetas, intersigmasqs) = cpk.load(file_)
         self.rvCount = len(pruned_parents)
         self.sortedids = range(self.rvCount)
@@ -94,6 +94,8 @@ class GaussianDBN(MLRegModel):
             self.setParentsByK2(topology_file_path)
         elif topology == 'fully_connected':
             self.set_parents_fully_connected()
+        elif topology == 'lasso':
+            raise ValueError('topology is set as lasso, but topology learning is multivariate Gaussian learning.')
         else:
             raise ValueError('topology should be either imt, or mst or mst_enriched.')
         self.cpdParams = np.empty(shape=self.means.shape + (2,), dtype=tuple)

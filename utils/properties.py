@@ -36,13 +36,13 @@ wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Document
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170923/fully_connected_with_offset/temperature/DGBN/RND_debug/'
+outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170923/lasso_shift_corrected/temperature/DGBN/RND/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 2
 
 tWin = 12
 timeSpan = 12
-obsrateList = np.arange(0.1, 0.3, 0.1)
+obsrateList = np.arange(0.0, 0.7, 0.1)
 numTrials = 5
 
 selectionStrategy = 'randomStrategy2'
@@ -72,11 +72,12 @@ preselections = [11, 35, 12, 40, 5, 19, 29, 32, 44, 48]
 #  44, 45, 47]
 # count is 30 in the above list
 
-dbn_topology = 'k2_bin5'
+# dbn_topology = 'k2_bin5'
 # dbn_topology = 'fully_connected'
 # dbn_topology = 'mst'
 # dbn_topology = 'k2_bin10'
 # dbn_topology = 'imt'
+dbn_topology = 'lasso'
 # 'mst_enriched'
 
 data = 'temperature'
@@ -94,8 +95,8 @@ aligned_data = True
 # prediction_model = 'lc-lasso'
 prediction_model = 'dgbn'
 
-learningDBN = 'multivariate_Guassian'
-# learningDBN = 'lasso_regression'
+# learningDBN = 'multivariate_Guassian'
+learningDBN = 'lasso_regression'
 
 # linearChainRegressionMethod = 'linear'
 # linearChainRegressionMethod = 'ridge'
