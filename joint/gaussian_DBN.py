@@ -58,6 +58,7 @@ class GaussianDBN(MLRegModel):
         for var in self.sortedids:
             self.cpdParams[var, 0] = (initbeta0s[var], initbetas[var], initsigmasqs[var])
             self.cpdParams[var, 1] = (interbeta0s[var], interbetas[var], intersigmasqs[var])
+        self.childDict = self.getChildDict()
 
 
     def fit_by_multivariate_gaussian_distribution(self, trainset, topology='original', **kwargs):
