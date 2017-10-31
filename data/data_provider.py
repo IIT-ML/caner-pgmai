@@ -20,8 +20,8 @@ class DataProvider(object):
             trainset, testset = readdata.convert_time_window_df_randomvar_hour(True,
                                                         Neighborhood.itself_previous_others_current)
             if utils.properties.aligned_data:
-                trainset = trainset[:, range(24, 36) + range(72, 84) + range(120, 132)]
-                testset = testset[:, 24:36]
+                trainset = trainset[:, range(22, 34) + range(70, 82) + range(118, 130)]
+                testset = testset[:, 22:34]
         elif 'humidity' == utils.properties.data:
             hp = HumidityProcessor()
             # hp.read_data(to_be_pickled=True)
@@ -33,8 +33,8 @@ class DataProvider(object):
             trainset, testset = hp.convert_time_window_df_randomvar_hour(True,
                                                                          Neighborhood.itself_previous_others_current)
             if utils.properties.aligned_data:
-                trainset = trainset[:, range(24, 36) + range(72, 84) + range(120, 132)]
-                testset = testset[:, 24:36]
+                trainset = trainset[:, range(22, 34) + range(70, 82) + range(118, 130)]
+                testset = testset[:, 22:34]
         elif 'temperature+humidity' == utils.properties.data:
             trainset1, testset1 = readdata.convert_time_window_df_randomvar_hour(True,
                                                         Neighborhood.itself_previous_others_current)

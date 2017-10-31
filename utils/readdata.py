@@ -9,16 +9,15 @@ import numpy as np
 import cPickle
 import itertools
 
-from utils.node import SensorRVNode
+from utils.node import SensorRVNode, Neighborhood
 
 # DATA_DIR_PATH = 'data/'
-DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\git\\pgmai\\regressionDataDays2_3_4-5_6\\'
+DATA_DIR_PATH = 'C:/Users/CnrKmrl/Documents/workbench/data/intelResearch/regressionDataDays2_3_4-5_6/'
 
 
 def read_data(discarded_sensors=[5, 15, 18, 49],
               to_be_pickled=False):
-    tempdf = pd.read_csv('C:/Users/ckomurlu/Documents/workbench/data/' +
-        'TimeSeries/intelResearch/data/data2.txt', sep=' ', header=None,
+    tempdf = pd.read_csv('C:/Users/CnrKmrl/Documents/workbench/data/intelResearch/data2.txt', sep=' ', header=None,
         names=['date','time','epoch','moteid','temperature', 'humidity','light',
                'voltage'], parse_dates={'datentime': [0, 1]}, dtype={
                'datentime': np.datetime64,
@@ -26,8 +25,8 @@ def read_data(discarded_sensors=[5, 15, 18, 49],
                'humidity': np.float64, 'light': np.float64, 'voltage': np.float64})
     del tempdf['light']
     del tempdf['voltage']
-    del tempdf['temperature']
-    tempdf = tempdf.sort(columns='datentime')
+    del tempdf['humidity']
+    tempdf = tempdf.sort_values(by='datentime')
     tempdf = tempdf[tempdf.datentime < 
                     pd.Timestamp('2004-03-10 13:08:46.002832')]
     for sensor in discarded_sensors:
@@ -73,7 +72,7 @@ def window_data(digitizeddf=None, binCount=545, discarded_sensors=[5, 15, 18, 49
     meanSeries = groups[target_field].mean()
     time_window_df = pd.DataFrame(meanSeries)
     time_window_df.reset_index(level=0, inplace=True)
-    time_window_df.reset_index(level=1, inplace=True)
+    time_window_df.reset_index(inplace=True)
 #     digitize_temperature(time_window_df)
     if to_be_pickled:
         cPickle.dump(time_window_df,
@@ -209,7 +208,7 @@ def create_time_window_df_bin_feature(digitizeddf=None,
         except(IOError):            
             time_window_df = window_data(digitizeddf=digitizeddf,
                                          to_be_pickled=to_be_pickled)
-    time_window_df.sort(columns=['digTime','moteid'],inplace=True)
+    time_window_df.sort_values(by=['digTime','moteid'],inplace=True)
     daytime = np.array(map(lambda x: x.hour/6, digitizeddf.datentime))
     digitizeddf['daytime']=daytime
     dayTimeList = np.empty((time_window_df.shape[0]),dtype=np.int64)
@@ -337,7 +336,7 @@ def create_time_window_df_hour_feature(digitizeddf=None,
         except(IOError):            
             time_window_df = window_data(digitizeddf=digitizeddf,
                                          to_be_pickled=to_be_pickled)
-    time_window_df.sort(columns=['digTime','moteid'],inplace=True)
+    time_window_df.sort_values(by=['digTime','moteid'],inplace=True)
 #     daytime = np.array(map(lambda x: x.hour/float(48), digitizeddf.datentime))
     daytime = np.array(map(lambda x: x.hour + (x.minute>29)*.5, digitizeddf.datentime))
     digitizeddf['daytime']=daytime
@@ -358,7 +357,7 @@ def add_day_to_time_window_df_hour(time_window_df=None,to_be_pickled=False):
             time_window_df = cPickle.load(open(DATA_DIR_PATH+
                         'time_window_df_hour_feature.pickle','rb'))
         except(IOError):
-            time_window_df = create_time_window_df_bin_feature(to_be_pickled=
+            time_window_df = create_time_window_df_hour_feature(to_be_pickled=
                                                                to_be_pickled)
     timeBins = np.arange(12)*48 + 1
     timeBins = timeBins[1:]
@@ -372,7 +371,7 @@ def train_test_split_by_day_hour(to_be_pickled=False):
 #     test_days = range(5,10)
     train_days = [2,3,4]
     test_days = [5,6]
-    time_window_df = add_day_to_time_window_df_hour()
+    time_window_df = add_day_to_time_window_df_hour(to_be_pickled=to_be_pickled)
     train_df = time_window_df[time_window_df.day.isin(train_days)]
     test_df = time_window_df[time_window_df.day.isin(test_days)]
     if to_be_pickled:
@@ -391,8 +390,7 @@ def convert_time_window_df_randomvar_hour(to_be_pickled=False,
 #         raise IOError
     except(IOError):
         try:
-            traindays,testdays = cPickle.load(
-                open(DATA_DIR_PATH+'traintestdayshour.pickle','rb'))
+            traindays, testdays = pd.read_pickle(DATA_DIR_PATH + 'traintestdayshour.pickle')
         except(IOError):
             traindays,testdays = train_test_split_by_day_hour(to_be_pickled)
         sensor_IDs = traindays.moteid.unique()
@@ -410,7 +408,7 @@ def convert_time_window_df_randomvar_hour(to_be_pickled=False,
             local_feature_vector = row.hour
             neighbors = neighborhood_def(sensor_id, sensor_IDs)
             train_set[sensor_idx,dig_time] = \
-                SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
+                SensorRVNode(sensor_id=row.moteid, dig_time=row.digTime,
                              day=row.day, true_label=row.temperature,
                              local_feature_vector=local_feature_vector,
                              is_observed=False, neighbors=neighbors)
@@ -437,11 +435,17 @@ def convert_time_window_df_randomvar_hour(to_be_pickled=False,
                     'wb'),protocol=cPickle.HIGHEST_PROTOCOL)
     return train_set,test_set
 
+
+# create_time_window_df_hour_feature()
+# add_day_to_time_window_df_hour(time_window_df=None,to_be_pickled=False)
+# train_test_split_by_day_hour(to_be_pickled=False)
+# convert_time_window_df_randomvar_hour(to_be_pickled=True, neighborhood_def=Neighborhood.itself_previous_others_current)
+
 # convert_time_window_df_randomvar(to_be_pickled=True)
 
 #test1
 # tempdf = read_data()
-# digitizeddf = digitize_data(tempdf=tempdf)
+# digitizeddf = digitize_data()
 # time_window_df = window_data(digitizeddf=digitizeddf)
 # feature_mat = convert_digitized_to_feature_matrix(tempdf, time_window_df)
 

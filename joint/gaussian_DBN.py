@@ -56,9 +56,10 @@ class GaussianDBN(MLRegModel):
                            pruned_parents.items()}
         self.cpdParams = np.empty(shape=(self.rvCount, 2), dtype=tuple)
         for var in self.sortedids:
-            self.cpdParams[var, 0] = (initbeta0s[var], initbetas[var], initsigmasqs[var])
-            self.cpdParams[var, 1] = (interbeta0s[var], interbetas[var], intersigmasqs[var])
+            self.cpdParams[var, 0] = (initbeta0s[var], np.array(initbetas[var])[:, np.newaxis], initsigmasqs[var])
+            self.cpdParams[var, 1] = (interbeta0s[var], np.array(interbetas[var])[:, np.newaxis], intersigmasqs[var])
         self.childDict = self.getChildDict()
+        self.childDict = {key: filter(lambda x: x<self.rvCount, self.childDict[key]) for key in self.childDict}
 
 
     def fit_by_multivariate_gaussian_distribution(self, trainset, topology='original', **kwargs):

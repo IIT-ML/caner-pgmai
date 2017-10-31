@@ -12,7 +12,7 @@ __author__ = 'ckomurlu'
 class HumidityProcessor(object):
 
     def __init__(self):
-        self.DATA_DIR_PATH = 'C:\\Users\\ckomurlu\\PycharmProjects\\pgmai\\humidityData\\'
+        self.DATA_DIR_PATH = 'C:/Users/CnrKmrl/Documents/workbench/data/intelResearch/humidity/'
         self.humidf = None
         self.time_window_df = None
         self.train_df = None
@@ -80,8 +80,9 @@ class HumidityProcessor(object):
     def create_time_window_df_hour_feature(self, to_be_pickled=False):
         try:
             self.time_window_df = cPickle.load(open(self.DATA_DIR_PATH + 'time_window_df_hour_feature.pickle', 'rb'))
+            # raise IOError
         except IOError:
-            self.time_window_df.sort(columns=['digTime', 'moteid'], inplace=True)
+            self.time_window_df.sort_values(by=['digTime', 'moteid'], inplace=True)
             #     daytime = np.array(map(lambda x: x.hour/float(48), digitizeddf.datentime))
             daytime = np.array(map(lambda x: x.hour + (x.minute > 29)*.5, self.humidf.datentime))
             self.humidf['daytime'] = daytime
@@ -121,7 +122,7 @@ class HumidityProcessor(object):
         try:
             self.train_set, self.test_set = cPickle.load(
                 open(self.DATA_DIR_PATH + neighborhood_def.__name__+'_hour.pickle','rb'))
-            #         raise IOError
+            # raise IOError
         except IOError:
             sensor_IDs = self.train_df.moteid.unique()
             digTime_list = self.train_df.digTime.unique()
@@ -138,7 +139,7 @@ class HumidityProcessor(object):
                 local_feature_vector = row.hour
                 neighbors = neighborhood_def(sensor_id, sensor_IDs)
                 self.train_set[sensor_idx, dig_time] = \
-                    SensorRVNode(sensor_id=row.moteid, dig_time=dig_time,
+                    SensorRVNode(sensor_id=row.moteid, dig_time=row.digTime,
                                  day=row.day, true_label=row.humidity,
                                  local_feature_vector=local_feature_vector,
                                  is_observed=False, neighbors=neighbors)
@@ -167,11 +168,10 @@ class HumidityProcessor(object):
 
 # hp = HumidityProcessor()
 # hp.read_data(to_be_pickled=True)
-# hp.digitize_data(to_be_pickled=True)
-# hp.window_data(to_be_pickled=True)
-# hp.create_time_window_df_hour_feature(to_be_pickled=True)
+# hp.digitize_data(to_be_pickled=False)
+# hp.window_data(to_be_pickled=False)
+# hp.create_time_window_df_hour_feature(to_be_pickled=False)
 # hp.add_day_to_time_window_df_hour()
-# hp.train_test_split_by_day_hour(to_be_pickled=True)
-# trainset,testset = hp.convert_time_window_df_randomvar_hour(True,
-#                                         Neighborhood.itself_previous_others_current)
+# hp.train_test_split_by_day_hour(to_be_pickled=False)
+# trainset,testset = hp.convert_time_window_df_randomvar_hour(neighborhood_def=Neighborhood.itself_previous_others_current)
 # print 'Process ended.'
