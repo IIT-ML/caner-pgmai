@@ -48,7 +48,12 @@ class GaussianDBN(MLRegModel):
             self.fit_by_lasso_regression()
 
     def fit_by_lasso_regression(self):
-        file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\intelResearch\lasso_learned_parameters_[22_34,70_82,118_130].pkl', 'r')
+        if utils.properties.data == 'temperature':
+            file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\intelResearch\lasso_learned_parameters_IntelTemp[22_34,70_82,118_130].pkl', 'r')
+        if utils.properties.data == 'humidity':
+            file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\intelResearch\lasso_learned_parameters_IntelHumid[22_34,70_82,118_130].pkl', 'r')
+        if utils.properties.data == 'wunderground-cwide':
+            file_ = open(r'C:\Users\CnrKmrl\Documents\workbench\data\wunderground\countrywide\lasso_learned_parameters_[0_124].pkl', 'r')
         (pruned_parents, initbeta0s, initbetas, initsigmasqs, interbeta0s, interbetas, intersigmasqs) = cpk.load(file_)
         self.rvCount = len(pruned_parents)
         self.sortedids = range(self.rvCount)

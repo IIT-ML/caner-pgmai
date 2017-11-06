@@ -57,7 +57,8 @@ class DataProvider(object):
         elif 'wunderground-cwide' == utils.properties.data:
             trainset, testset = wunderground_data.split_train_test(data_name='countrywide')
             if utils.properties.aligned_data:
-                raise NotImplementedError('Aligned data approach is not implemented for Wunderground US data.')
+                testset = trainset[:, 180:192]
+                trainset = trainset[:, :124]
         else:
             raise ValueError('Unknown value for utils.properties.data: ' + utils.properties.data)
         return trainset, testset
