@@ -36,7 +36,7 @@ wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Document
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
 # outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20170923/lasso_shift_corrected/temperature/DGBN/RND/'
+outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20171028/lasso/humidity/KF/SW/'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 2
 
@@ -45,8 +45,8 @@ timeSpan = 12
 obsrateList = np.arange(0.0, 0.7, 0.1)
 numTrials = 5
 
-selectionStrategy = 'randomStrategy2'
-# selectionStrategy = 'slidingWindow'
+# selectionStrategy = 'randomStrategy2'
+selectionStrategy = 'slidingWindow'
 # selectionStrategy = 'impactBased'
 # selectionStrategy = 'minimumImpactBased'
 # selectionStrategy = 'netImpactBased'
@@ -80,8 +80,8 @@ preselections = [11, 35, 12, 40, 5, 19, 29, 32, 44, 48]
 dbn_topology = 'lasso'
 # 'mst_enriched'
 
-data = 'temperature'
-# data = 'humidity'
+# data = 'temperature'
+data = 'humidity'
 # data = 'temperature+humidity'
 # data = 'wunderground-IL'
 # data = 'wunderground-cwide'
@@ -89,11 +89,11 @@ data = 'temperature'
 aligned_data = True
 
 # prediction_model = 'gp'
-# prediction_model = 'kf'
+prediction_model = 'kf'
 # prediction_model = 'lc-linear'
 # prediction_model = 'lc-ridge'
 # prediction_model = 'lc-lasso'
-prediction_model = 'dgbn'
+# prediction_model = 'dgbn'
 
 # learningDBN = 'multivariate_Guassian'
 learningDBN = 'lasso_regression'
@@ -104,7 +104,7 @@ learningDBN = 'lasso_regression'
 
 
 #Kalman Filter related parameters
-aggregation_period = 4  # This parameter is the length of window on which we will aggregate observation. E.g obs[0] will
+aggregation_period = 12  # This parameter is the length of window on which we will aggregate observation. E.g obs[0] will
                         # be the mean of true_label[0], true_label[aggregation_period], true_label[2*aggregation_period]
 
 mh_sampleSize = 2000

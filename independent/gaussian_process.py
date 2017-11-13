@@ -35,7 +35,7 @@ class GaussianProcessLocal(MLRegModel):
             ytrain = np.vectorize(lambda x: x.true_label)(train_mat)
 
             ytrain_split = np.split(ytrain, 3, axis=1)  # Intel data
-            # ytrain_split = np.split(ytrain, 59, axis=1)  #Wunderground data
+            # ytrain_split = np.split(ytrain, 31, axis=1)  #Wunderground data
             ytrain_split_array = np.array(ytrain_split)
             ytrain_mean = np.mean(ytrain_split_array, axis=0)
 
@@ -46,7 +46,7 @@ class GaussianProcessLocal(MLRegModel):
                 #                                   random_start=100)
                 self.gpmat[row] = GaussianProcess(corr='linear', theta0=1e-2, thetaL=1e-4, thetaU=1e-1,
                                                            random_start=100)
-                self.gpmat[row].fit(Xtrain[row, :48].reshape(-1, 1), ytrain_mean[row])  # Intel data
+                self.gpmat[row].fit(Xtrain[row, :12].reshape(-1, 1), ytrain_mean[row])  # Intel data
                 # self.gpmat[row].fit(Xtrain[row, :4].reshape(-1, 1), ytrain_mean[row])  # Wunderground data
 
     def computeVar(self, evidMat):
