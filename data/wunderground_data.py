@@ -43,8 +43,7 @@ def split_train_test(data_name='IL'):
         fname = 'C:\\Users\\CnrKmrl\\Documents\\workbench\\data\\wunderground\\IL\\csvData\\wund_3months_mat.pkl'
 
     elif data_name == 'countrywide':
-        fname = 'C:\\Users\\CnrKmrl\\Documents\\workbench\\data\\wunderground\\countrywide\\csvData\\' + \
-                'wund_3months_mat.pkl'
+        fname = 'wunderground/wund_3months_mat.pkl'
     else:
         raise ValueError()
     data_mat = read_data_matrix(fname)

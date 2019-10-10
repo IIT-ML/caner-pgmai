@@ -25,7 +25,7 @@ from models.LinearRegressionExt import LinearRegressionExt
 from sklearn.externals.joblib.parallel import Parallel
 
 
-def main_IRA():
+def main_trial():
     begin = time()
     neighborhood_def = Neighborhood.itself_previous_others_current
     train_set,test_set = convert_time_window_df_randomvar(True,
@@ -282,7 +282,7 @@ if __name__ == '__main__':
     # computeErrorIndependently()
 
 
-# main_IRA()
+# main_trial()
 
 # create_time_window_df_hour_feature(to_be_pickled=True)
 

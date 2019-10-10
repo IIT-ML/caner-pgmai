@@ -12,7 +12,7 @@ import itertools
 from utils.node import SensorRVNode, Neighborhood
 
 # DATA_DIR_PATH = 'data/'
-DATA_DIR_PATH = 'C:/Users/CnrKmrl/Documents/workbench/data/intelResearch/regressionDataDays2_3_4-5_6/'
+DATA_DIR_PATH = '../data/intel_research/'
 
 
 def read_data(discarded_sensors=[5, 15, 18, 49],

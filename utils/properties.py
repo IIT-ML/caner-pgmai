@@ -11,32 +11,25 @@ import numpy as np
 ts = time.time()
 
 # temperature data
-temperature_k2_bin10_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20150911/' + \
-                                      'parentChildDicts_k2_bin10.pkl'
-temperature_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/data/intelResearch/' + \
-                                     'parentChildDicts_k2_bin5.pkl'
+# temperature_k2_bin10_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20150911/' + \
+#                                       'parentChildDicts_k2_bin10.pkl'
+temperature_k2_bin5_topology_ParentChildDictPath = '../data/intel_humidity/parentChildDicts_k2_bin5.pkl'
 
 # humidity
-humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/data/intelResearch/humidity/' + \
-                                     'humidity_parentChildDicts_k2_bin5.pkl'
+humidity_k2_bin5_topology_ParentChildDictPath = '../data/intel_humidity/humidity_parentChildDicts_k2_bin5.pkl'
 
 # temperature + humidity
-temperature_humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/' + \
-                                     'experiments/20151103/temp_humid_parentChildDicts_k2_bin5.pkl'
+# temperature_humidity_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/' + \
+                                     # 'experiments/20151103/temp_humid_parentChildDicts_k2_bin5.pkl'
 
 # wunderground-IL
-wground_IL_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/data/wunderground/IL/' \
-                                               'wground_parentChildDicts_k2_bin5.pkl'
+# wground_IL_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/data/wunderground/IL/' \
+                                               # 'wground_parentChildDicts_k2_bin5.pkl'
 
 # wunderground-countrywide
-wground_cdwide_k2_bin5_topology_ParentChildDictPath = 'C:/Users/CnrKmrl/Documents/workbench/data/wunderground/' \
-                                               'countrywide/wground_parentChildDicts_k2_bin5.pkl'
+wground_cdwide_k2_bin5_topology_ParentChildDictPath = '../data/wunderground/wground_parentChildDicts_k2_bin5.pkl'
 
-# outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151103/5_GP/'
-# outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151029/5_GP/'
-# outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20151121/temperature/GP/SW/'
-# outputDirPath = 'C:/Users/ckomurlu/Documents/workbench/experiments/20161227/temperature/DGBN/SW/'
-outputDirPath = 'C:/Users/CnrKmrl/Documents/workbench/experiments/20171028/lasso/humidity/KF/SW/'
+outputDirPath = '<to be set>'
 timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d_%H%M')
 numParallelThreads = 2
 

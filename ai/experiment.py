@@ -42,6 +42,7 @@ def testActiveInferenceGaussianDBNParallel():
     print 'Prediction model selected: ', prediction_model.__class__
     prediction_model.fit(trainset, topology=topology)
     print 'Prediction model was trained.'
+    return
     Y_test_allT = np.vectorize(lambda x: x.true_label)(testset)
     parameterList = list()
     sampleSize = utils.properties.mh_sampleSize
